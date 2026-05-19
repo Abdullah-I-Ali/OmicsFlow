@@ -1,0 +1,47 @@
+# =============================================================================
+# .dockerignore — OmicsFlow Build Context Exclusions
+# =============================================================================
+
+# Large data files (mount at runtime, never bake into image)
+data/*.rds
+data/*.tsv
+data/*.csv
+data/*.maf
+data/full_scripts.R
+
+# Results (runtime outputs)
+results/
+
+# Nextflow work directories
+work/
+.nextflow/
+.nextflow.log*
+
+# Version control
+.git/
+.gitignore
+
+# IDE / Editor
+.vscode/
+.Rproj.user/
+*.Rproj
+.RData
+.Rhistory
+
+# OS artifacts
+Thumbs.db
+.DS_Store
+
+# Docker itself (no recursive builds)
+Dockerfile
+.dockerignore
+
+# Temporary R plots
+Rplots.pdf
+
+# Reports (generated later)
+reports/
+
+# Documentation artifacts
+*.md
+!configs/*.config

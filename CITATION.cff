@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use OmicsFlow in your research, please cite this software."
+authors:
+  - family-names: "Ali"
+    given-names: "Abdullah Ibrahim"
+title: "OmicsFlow"
+version: 1.0.0
+date-released: 2026-05-19
+repository-code: "https://github.com/Abdullah-I-Ali/omicsflow"
+preferred-citation:
+  type: generic
+  authors:
+    - family-names: "Ali"
+      given-names: "Abdullah Ibrahim"
+  title: "OmicsFlow: A Modular Nextflow Pipeline for Integrated Multi-Omics and Survival Forecasting"
+  version: 1.0.0
+  year: 2026

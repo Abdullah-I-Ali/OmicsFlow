@@ -1,0 +1,55 @@
+library(jsonlite)
+
+cat("=== QC METRICS VERIFICATION ===\n")
+qc <- fromJSON("results/methylation/qc_metrics.json")
+cat(sprintf("cross_reactive_removed : %s\n", format(qc$filters$cross_reactive_removed, big.mark=",")))
+cat(sprintf("snp_probes_removed     : %s\n", format(qc$filters$snp_probes_removed, big.mark=",")))
+cat(sprintf("sex_chromosome_removed : %s\n", format(qc$filters$sex_chromosome_removed, big.mark=",")))
+cat(sprintf("non_cpg_removed        : %s\n", format(qc$filters$non_cpg_removed, big.mark=",")))
+cat(sprintf("total_bad_probes       : %s\n", format(qc$filters$total_bad_probes, big.mark=",")))
+cat(sprintf("detection_pval_removed : %s\n", format(qc$filters$detection_pval_removed, big.mark=",")))
+cat(sprintf("na_fraction_removed    : %s\n", format(qc$filters$na_fraction_removed, big.mark=",")))
+cat(sprintf("final_samples          : %s\n", format(qc$samples$final, big.mark=",")))
+cat(sprintf("raw_probes             : %s\n", format(qc$probes$raw, big.mark=",")))
+cat(sprintf("after_probe_filter     : %s\n", format(qc$probes$after_probe_filter, big.mark=",")))
+cat(sprintf("clean_probes (after NA): %s\n", format(qc$probes$after_na_filter, big.mark=",")))
+cat(sprintf("top_variable_selected  : %s\n", format(qc$probes$selected_top_variable, big.mark=",")))
+cat(sprintf("combat_applied         : %s\n", qc$batches$combat_applied))
+cat(sprintf("batches_detected       : %s\n", qc$batches$total_detected))
+
+cat("\n=== REPORT FILE ===\n")
+f <- "results/reports/OmicsFlow_Report.html"
+if (file.exists(f)) {
+  cat("HTML exists : YES\n")
+  cat(sprintf("File size   : %s bytes\n", format(file.size(f), big.mark=",")))
+  cat(sprintf("Modified    : %s\n", format(file.mtime(f))))
+} else {
+  cat("HTML exists : NO\n")
+}
+
+cat("\n=== QMD STRUCTURE CHECK ===\n")
+qmd <- readLines("reports/OmicsFlow_Report.qmd")
+cat(sprintf("Total lines            : %d\n", length(qmd)))
+cat(sprintf("interp-block count     : %d (expected 6)\n", sum(grepl("interp-block", qmd))))
+cat(sprintf("of-cover banner        : %s\n", if(any(grepl("of-cover", qmd))) "YES" else "MISSING"))
+cat(sprintf("pipeline-summary chunk : %s\n", if(any(grepl("pipeline-summary", qmd))) "YES" else "MISSING"))
+cat(sprintf("Chen 2013 label        : %s\n", if(any(grepl("Chen 2013", qmd))) "YES" else "MISSING"))
+cat(sprintf("status_row function    : %s\n", if(any(grepl("status_row", qmd))) "YES" else "MISSING"))
+
+cat("\n=== CSS CHECK ===\n")
+css <- readLines("reports/styles.css")
+cat(sprintf("Total CSS lines        : %d\n", length(css)))
+cat(sprintf(".interp-block rule     : %s\n", if(any(grepl("interp-block", css))) "YES" else "MISSING"))
+cat(sprintf(".of-cover rule         : %s\n", if(any(grepl("of-cover", css))) "YES" else "MISSING"))
+cat(sprintf(".status-ok rule        : %s\n", if(any(grepl("status-ok", css))) "YES" else "MISSING"))
+
+cat("\n=== HTML CONTENT SPOT-CHECK ===\n")
+html_lines <- readLines(f)
+cat(sprintf("HTML total lines       : %s\n", format(length(html_lines), big.mark=",")))
+cat(sprintf("interp-block in HTML   : %d occurrences\n", sum(grepl("interp-block", html_lines))))
+cat(sprintf("of-cover in HTML       : %s\n", if(any(grepl("of-cover", html_lines))) "YES" else "MISSING"))
+cat(sprintf("29,233 in HTML         : %s\n", if(any(grepl("29.233|29,233", html_lines))) "YES" else "CHECK JSON"))
+cat(sprintf("Pipeline Summary in HTML: %s\n", if(any(grepl("Pipeline Summary", html_lines))) "YES" else "MISSING"))
+cat(sprintf("status-ok in HTML      : %s\n", if(any(grepl("status-ok", html_lines))) "YES" else "MISSING"))
+
+cat("\n=== ALL CHECKS COMPLETE ===\n")

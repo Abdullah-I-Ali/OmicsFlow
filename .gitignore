@@ -1,0 +1,56 @@
+# =============================================================================
+# OmicsFlow Production Gitignore
+# =============================================================================
+
+# --- System & Editor Files ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# --- R Environment & Cache ---
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+.Rprofile
+
+# --- Python Environment & Cache ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+.ipynb_checkpoints/
+
+# --- Nextflow Run Artifacts ---
+.nextflow/
+.nextflow.log*
+work/
+
+# --- Execution Logs & Caches ---
+logs/
+temp/
+cache/
+scratch/
+
+# --- Pipeline Results & Outputs ---
+results/
+data/
+
+# --- File Types / Binaries / Large Datasets ---
+*.rds
+*.html
+*.pdf
+*.png
+
+# --- Keep Specific Documentation Assets ---
+# Force Git to track preview images in the assets folder even though *.png is ignored
+!assets/**/*.png
+!assets/**/*.jpg
+!assets/**/*.jpeg
+!assets/**/*.gif

@@ -1,0 +1,249 @@
+/* =============================================================================
+ * OmicsFlow Report — Custom CSS Stylesheet
+ * Publication-ready scientific report styling
+ * ============================================================================= */
+
+/* --- Import Google Font --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* --- Root Variables --- */
+:root {
+  --of-primary: #1a5276;
+  --of-secondary: #2e86c1;
+  --of-accent: #17a589;
+  --of-bg: #fafbfc;
+  --of-card-bg: #ffffff;
+  --of-border: #e5e8eb;
+  --of-text: #2c3e50;
+  --of-text-muted: #7f8c8d;
+  --of-success: #27ae60;
+  --of-warning: #f39c12;
+  --of-danger: #e74c3c;
+}
+
+/* --- Global --- */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--of-text);
+  background-color: var(--of-bg);
+  line-height: 1.7;
+}
+
+/* --- Headings --- */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  color: var(--of-primary);
+}
+
+h1.title {
+  font-size: 2.2rem;
+  border-bottom: 3px solid var(--of-secondary);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: var(--of-text-muted);
+  font-weight: 400;
+}
+
+h2 {
+  font-size: 1.6rem;
+  border-bottom: 2px solid var(--of-border);
+  padding-bottom: 0.4rem;
+  margin-top: 2.5rem;
+}
+
+h3 {
+  font-size: 1.25rem;
+  color: var(--of-secondary);
+  margin-top: 1.8rem;
+}
+
+/* --- Tables --- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+thead th {
+  background-color: var(--of-primary);
+  color: white;
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 500;
+}
+
+tbody td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--of-border);
+}
+
+tbody tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+tbody tr:hover {
+  background-color: #eef3f8;
+}
+
+/* --- Figures --- */
+figure {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+figure img {
+  max-width: 100%;
+  border: 1px solid var(--of-border);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+figcaption {
+  font-size: 0.85rem;
+  color: var(--of-text-muted);
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+/* --- Code --- */
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+  background-color: #f0f3f5;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+}
+
+/* --- Callout Boxes --- */
+.callout-note {
+  border-left-color: var(--of-secondary) !important;
+}
+
+.callout-important {
+  border-left-color: var(--of-accent) !important;
+}
+
+.callout-warning {
+  border-left-color: var(--of-warning) !important;
+}
+
+/* --- Metric Cards --- */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.metric-card {
+  background: var(--of-card-bg);
+  border: 1px solid var(--of-border);
+  border-radius: 8px;
+  padding: 1.2rem;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.metric-card .value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--of-secondary);
+  display: block;
+}
+
+.metric-card .label {
+  font-size: 0.8rem;
+  color: var(--of-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 0.25rem;
+}
+
+/* --- Status Badges --- */
+.badge-pass {
+  display: inline-block;
+  background: var(--of-success);
+  color: white;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.badge-warn {
+  display: inline-block;
+  background: var(--of-warning);
+  color: white;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* --- Section Dividers --- */
+.section-divider {
+  border: none;
+  border-top: 2px solid var(--of-border);
+  margin: 2.5rem 0;
+}
+
+/* --- TOC Styling --- */
+#TOC {
+  border-left: 3px solid var(--of-secondary);
+  padding-left: 1rem;
+}
+
+/* --- Print Optimization --- */
+@media print {
+  body { font-size: 10pt; }
+  h1.title { font-size: 18pt; }
+  .metric-card { break-inside: avoid; }
+  figure { break-inside: avoid; }
+}
+
+/* --- Scientific Interpretation Blocks --- */
+.interp-block {
+  background: #f0f7ff;
+  border-left: 4px solid var(--of-secondary);
+  border-radius: 0 6px 6px 0;
+  padding: 0.9rem 1.2rem;
+  margin: 1rem 0 1.5rem 0;
+  font-size: 0.93rem;
+  color: var(--of-text);
+  line-height: 1.65;
+}
+.interp-block strong { color: var(--of-primary); }
+
+/* --- Front-page Banner --- */
+.of-cover {
+  background: linear-gradient(135deg, #1a5276 0%, #2e86c1 100%);
+  color: white;
+  border-radius: 10px;
+  padding: 2rem 2.5rem;
+  margin: 0.5rem 0 2rem 0;
+}
+.of-cover h2 { color: white; border: none; margin: 0 0 0.3rem 0; font-size: 1.5rem; }
+.of-cover p  { margin: 0.2rem 0; font-size: 0.95rem; opacity: 0.92; }
+.of-cover .of-cover-meta { margin-top: 1rem; font-size: 0.85rem; opacity: 0.8; }
+
+/* --- Pipeline Status Table --- */
+.status-table td:first-child { font-weight: 500; width: 30%; }
+.status-ok   { color: var(--of-success); font-weight: 600; }
+.status-na   { color: var(--of-text-muted); font-style: italic; }
+
