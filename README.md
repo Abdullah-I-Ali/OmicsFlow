@@ -192,23 +192,7 @@ OmicsFlow v1.0.0 enforces strict computational reproducibility:
 
 ## Example Report Previews
 
-The automated report provides an interactive showcase of pipeline quality:
-
-### 1. Executive Summary & QC Status
-Displays patient sample counts, feature counts through filtering, and overall execution status metrics.
-![Executive Summary Dashboard](assets/preview_executive_summary.png)
-
-### 2. MOFA+ Factorization
-Shows explained variance percentages across all four omics layers and highlights latent factors capturing inter-view variations.
-![MOFA Integration Plot](assets/preview_mofa_integration.png)
-
-### 3. Survival Machine Learning
-Details model comparisons (C-index) and renders interactive Kaplan-Meier survival probability curves for stratified cohorts.
-![Survival Prediction Results](assets/preview_ml_results.png)
-
-### 4. Pathway ORA dotplot
-Highlights top enriched terms with dot sizes proportional to gene ratios, and colors reflecting statistical significance (FDR).
-![Pathway Enrichment Plots](assets/preview_pathway_enrichment.png)
+Example report screenshots will be added in a future release.
 
 ---
 
