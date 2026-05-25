@@ -5,7 +5,7 @@
 
 source("modules/cnv/utils_cnv.R")
 
-export_cnv_results <- function(cnv_matrix, gene_var_df, outdir) {
+export_cnv_results <- function(cnv_matrix, gene_var_df, outdir, sample_info = NULL) {
   cnv_step("Export", "Saving Processed Data")
   
   if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
@@ -22,12 +22,12 @@ export_cnv_results <- function(cnv_matrix, gene_var_df, outdir) {
   cnv_msg("Saved: cnv_gene_variance_info.rds")
   
   # Sample metadata
-  # CNV data doesn't have an explicit batch vector derived within this module,
-  # but we provide patient_id for uniform structure.
-  sample_info <- data.frame(
-    patient_id = colnames(cnv_matrix),
-    stringsAsFactors = FALSE
-  )
+  if (is.null(sample_info)) {
+    sample_info <- data.frame(
+      patient_id = colnames(cnv_matrix),
+      stringsAsFactors = FALSE
+    )
+  }
   path_meta_csv <- file.path(outdir, "sample_metadata.csv")
   path_meta_rds <- file.path(outdir, "sample_metadata.rds")
   write.csv(sample_info, path_meta_csv, row.names = FALSE)

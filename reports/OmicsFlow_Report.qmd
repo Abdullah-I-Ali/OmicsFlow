@@ -108,6 +108,31 @@ qc_snv  <- read_qc("snv")
 qc_int  <- read_qc("integration")
 qc_ml   <- read_qc("ml")
 qc_enr  <- read_qc("pathway")
+
+# --- Auto-detect cohort / data source / methylation platform ---
+meta_path <- file.path(res, "rna", "sample_metadata.csv")
+metadata <- if (file.exists(meta_path)) read.csv(meta_path, stringsAsFactors = FALSE) else NULL
+
+is_tcga <- is.null(metadata)
+cohort_label <- if (is_tcga) "TCGA Cohort" else "Custom Cohort"
+data_source_label <- if (is_tcga) "TCGA data" else "cohort-agnostic data"
+sample_class_label <- if (!is.null(metadata) && "sample_class" %in% colnames(metadata)) {
+  paste(unique(metadata$sample_class), collapse = " / ")
+} else {
+  "primary tumor"
+}
+
+meth_platform <- "Illumina Methylation"
+if (length(qc_meth) > 0 && !is.null(qc_meth$probes$raw)) {
+  n_raw <- qc_meth$probes$raw
+  if (n_raw > 800000) {
+    meth_platform <- "Illumina EPIC (850k)"
+  } else if (n_raw > 400000) {
+    meth_platform <- "Illumina 450k"
+  } else {
+    meth_platform <- "Illumina Methylation Array"
+  }
+}
 ```
 
 ---
@@ -119,7 +144,7 @@ qc_enr  <- read_qc("pathway")
 <p><strong>Stable Core Release</strong> &nbsp;·&nbsp; Author: Abdullah Ibrahim Ali</p>
 <p>Generated: `r format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")`</p>
 <div class="of-cover-meta">
-Omics layers integrated: RNA-seq &nbsp;|&nbsp; DNA Methylation (450k) &nbsp;|&nbsp; Copy Number Variation &nbsp;|&nbsp; Somatic Mutations (SNV)<br>
+Omics layers integrated: RNA-seq &nbsp;|&nbsp; DNA Methylation (`r meth_platform`) &nbsp;|&nbsp; Copy Number Variation &nbsp;|&nbsp; Somatic Mutations (SNV)<br>
 Pipeline: Preprocessing → MOFA+ Integration → Survival ML → Pathway Enrichment
 </div>
 </div>
@@ -138,7 +163,7 @@ if (length(qc_meth) > 0 && !is.null(qc_meth$probes$after_na_filter))
 metric_grid_close()
 ```
 
-This report automatically summarizes all outputs from the OmicsFlow multi-omics preprocessing, integration, machine learning, and pathway enrichment pipeline. All analyses follow established bioinformatics best practices for TCGA data and are designed to be directly reproducible.
+This report automatically summarizes all outputs from the OmicsFlow multi-omics preprocessing, integration, machine learning, and pathway enrichment pipeline. All analyses follow established bioinformatics best practices for `r data_source_label` and are designed to be directly reproducible.
 
 ---
 
@@ -154,7 +179,7 @@ n_meth = if(length(qc_meth)>0 && !is.null(qc_meth$probes$after_na_filter)) qc_me
 n_cnv = if(length(qc_cnv)>0 && !is.null(qc_cnv$genes$final_genes)) qc_cnv$genes$final_genes else 0
 n_snv = if(length(qc_snv)>0 && !is.null(qc_snv$genes$final_genes)) qc_snv$genes$final_genes else 0
 
-cat('<strong>OmicsFlow v1.0.0</strong> successfully processed and integrated multi-omics data for <strong>', fmt(qc_ml$samples$total_valid_patients), '</strong> primary tumor samples.
+cat('<strong>OmicsFlow v1.0.0</strong> successfully processed and integrated multi-omics data for <strong>', fmt(qc_ml$samples$total_valid_patients), '</strong> ', sample_class_label, ' samples.
 
 ')
 
@@ -261,7 +286,7 @@ include_figure("rna", "density_log2cpm", "Density distribution of log2 CPM value
 ### PCA — Before & After Batch Correction
 
 ```{r rna-pca, results='asis'}
-include_figure("rna", "pca_before_after_batch", "PCA coloured by sequencing batch before (left) and after (right) ComBat-seq correction", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("rna", "pca_before_after_batch", "PCA coloured by sequencing batch before (left) and after (right) ComBat-seq correction", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 <div class="interp-block">
@@ -277,7 +302,7 @@ include_figure("rna", "sample_correlation_heatmap", "Inter-sample Pearson correl
 ### Research Validation Figure
 
 ```{r rna-validation, results='asis'}
-include_figure("rna", "Research_Validation_Figures", "RNA-seq composite validation figure: expression distribution, mean–SD relationship, and inter-sample Pearson correlation", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("rna", "Research_Validation_Figures", "RNA-seq composite validation figure: expression distribution, mean–SD relationship, and inter-sample Pearson correlation", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 <div class="interp-block">
@@ -329,7 +354,7 @@ if (length(qc_meth) > 0 && !is.null(qc_meth$filters)) {
 ```
 
 <div class="interp-block">
-**Probe quality filtering.** The 450k array contains several classes of unreliable probes that must be excluded prior to biological analysis. Cross-reactive probes (Chen *et al.*, 2013) hybridise to off-target genomic loci, producing spurious methylation signals. SNP-associated probes whose CpG site or probe body overlaps a common variant (MAF > 1%) are excluded to prevent genotype-driven confounding. Sex chromosome probes are removed to eliminate sex-stratified artefacts in mixed-sex cohorts. After filtering `r fmt(qc_meth$filters$total_bad_probes)` unreliable probes (including `r fmt(qc_meth$filters$cross_reactive_removed)` cross-reactive and `r fmt(qc_meth$filters$snp_probes_removed)` SNP-associated probes), `r if(length(qc_meth)>0 && !is.null(qc_meth$probes$after_probe_filter)) fmt(qc_meth$probes$after_probe_filter) else "—"` high-quality CpG probes were retained for downstream analysis.
+**Probe quality filtering.** The `r meth_platform` array contains several classes of unreliable probes that must be excluded prior to biological analysis. Cross-reactive probes (Chen *et al.*, 2013) hybridise to off-target genomic loci, producing spurious methylation signals. SNP-associated probes whose CpG site or probe body overlaps a common variant (MAF > 1%) are excluded to prevent genotype-driven confounding. Sex chromosome probes are removed to eliminate sex-stratified artefacts in mixed-sex cohorts. After filtering `r fmt(qc_meth$filters$total_bad_probes)` unreliable probes (including `r fmt(qc_meth$filters$cross_reactive_removed)` cross-reactive and `r fmt(qc_meth$filters$snp_probes_removed)` SNP-associated probes), `r if(length(qc_meth)>0 && !is.null(qc_meth$probes$after_probe_filter)) fmt(qc_meth$probes$after_probe_filter) else "—"` high-quality CpG probes were retained for downstream analysis.
 </div>
 
 ### Probe Filtering Log
@@ -345,23 +370,23 @@ if (file.exists(probe_log_path)) {
 ### Beta-Value Distribution
 
 ```{r meth-beta, results='asis'}
-include_figure("methylation", "beta_distribution", "Beta-value density distribution across samples", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("methylation", "beta_distribution", "Beta-value density distribution across samples", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### PCA — After ComBat Correction
 
 ```{r meth-pca, results='asis'}
-include_figure("methylation", "pca_after_combat", "PCA of top 5,000 most variable CpG probes coloured by sequencing plate batch, after ComBat correction", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("methylation", "pca_after_combat", "PCA of top 5,000 most variable CpG probes coloured by sequencing plate batch, after ComBat correction", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 <div class="interp-block">
-**ComBat batch correction.** DNA methylation data from TCGA is processed across multiple Illumina 450k plates, each introducing systematic technical variation. ComBat empirical Bayes correction was applied with tissue source site (TSS), age at diagnosis, and sex protected as biological covariates, ensuring that biological signal is preserved while plate-level batch effects are removed. The PCA above confirms that samples no longer cluster by plate ID after correction, validating that downstream differential methylation and integration analyses reflect genuine biology.
+**ComBat batch correction.** DNA methylation data from `r cohort_label` is processed across multiple `r meth_platform` plates, each introducing systematic technical variation. ComBat empirical Bayes correction was applied with tissue source site (TSS), age at diagnosis, and sex protected as biological covariates, ensuring that biological signal is preserved while plate-level batch effects are removed. The PCA above confirms that samples no longer cluster by plate ID after correction, validating that downstream differential methylation and integration analyses reflect genuine biology.
 </div>
 
 ### Research Validation Figure
 
 ```{r meth-validation, results='asis'}
-include_figure("methylation", "Methylation_Research_Validation_Figures", "Methylation composite validation figure", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("methylation", "Methylation_Research_Validation_Figures", "Methylation composite validation figure", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ---
@@ -382,19 +407,19 @@ if (length(qc_cnv) > 0) {
 ### CNV Distribution
 
 ```{r cnv-density, results='asis'}
-include_figure("cnv", "cnv_density", "Density distribution of gene-level CNV values", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("cnv", "cnv_density", "Density distribution of gene-level CNV values", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### PCA Visualization
 
 ```{r cnv-pca, results='asis'}
-include_figure("cnv", "cnv_pca", "PCA of CNV gene-level matrix", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("cnv", "cnv_pca", "PCA of CNV gene-level matrix", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### Research Validation Figure
 
 ```{r cnv-validation, results='asis'}
-include_figure("cnv", "CNV_Research_Validation_Figures", "CNV composite validation figure", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("cnv", "CNV_Research_Validation_Figures", "CNV composite validation figure", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ---
@@ -430,13 +455,13 @@ if (length(qc_snv) > 0 && !is.null(qc_snv$filters)) {
 ### Oncoplot — Top Mutated Genes
 
 ```{r snv-oncoplot, results='asis'}
-include_figure("snv", "SNV_Oncoplot", "Oncoplot showing mutation landscape of top recurrently mutated genes", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("snv", "SNV_Oncoplot", "Oncoplot showing mutation landscape of top recurrently mutated genes", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### Research Validation Figure
 
 ```{r snv-validation, results='asis'}
-include_figure("snv", "SNV_Research_Validation_Figures", "SNV composite validation figure with mutation burden and gene frequency", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("snv", "SNV_Research_Validation_Figures", "SNV composite validation figure with mutation burden and gene frequency", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ---
@@ -472,7 +497,7 @@ if (length(qc_int) > 0 && !is.null(qc_int$views)) {
 ### Variance Explained Landscape
 
 ```{r int-variance, results='asis'}
-include_figure("integration", "MOFA_Fig1_Variance_Landscape", "MOFA+ variance explained (%) by each latent factor across omics views", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("integration", "MOFA_Fig1_Variance_Landscape", "MOFA+ variance explained (%) by each latent factor across omics views", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 <div class="interp-block">
@@ -485,13 +510,13 @@ include_figure("integration", "MOFA_Fig1_Variance_Landscape", "MOFA+ variance ex
 ### Factor Correlation Matrix
 
 ```{r int-correlation, results='asis'}
-include_figure("integration", "MOFA_Fig2_Factor_Correlation", "Correlation structure between MOFA latent factors", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("integration", "MOFA_Fig2_Factor_Correlation", "Correlation structure between MOFA latent factors", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### Factor 1 — Top Feature Drivers
 
 ```{r int-drivers, results='asis'}
-include_figure("integration", "MOFA_Fig3_Factor1_Drivers", "Top features driving Factor 1 across all omics views", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("integration", "MOFA_Fig3_Factor1_Drivers", "Top features driving Factor 1 across all omics views", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ---
@@ -519,7 +544,7 @@ if (file.exists(ml_csv)) {
 ```
 
 <div class="interp-block">
-**Model performance interpretation.** Harrell's concordance index (C-index) measures the probability that a model correctly ranks two randomly chosen patients by survival time. A C-index > 0.65 indicates clinically meaningful discrimination; > 0.70 is considered good performance for multi-omics survival models in heterogeneous TCGA cohorts. The best-performing model above was selected as the final prognostic classifier. Feature importance scores reflect each feature's contribution to risk stratification across cross-validated folds.
+**Model performance interpretation.** Harrell's concordance index (C-index) measures the probability that a model correctly ranks two randomly chosen patients by survival time. A C-index > 0.65 indicates clinically meaningful discrimination; > 0.70 is considered good performance for multi-omics survival models in heterogeneous `r cohort_label` cohorts. The best-performing model above was selected as the final prognostic classifier. Feature importance scores reflect each feature's contribution to risk stratification across cross-validated folds.
 </div>
 
 ### Top Prognostic Biomarkers
@@ -536,13 +561,13 @@ if (file.exists(feat_csv)) {
 ### Kaplan-Meier Survival Curves
 
 ```{r ml-km, results='asis'}
-include_figure("ml", "kaplan_meier_risk_groups", "Kaplan-Meier survival curves stratified by predicted risk groups", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("ml", "kaplan_meier_risk_groups", "Kaplan-Meier survival curves stratified by predicted risk groups", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### Research Validation Figure
 
 ```{r ml-validation, results='asis'}
-include_figure("ml", "ML_Research_Validation_Figures", "ML composite validation figure with model performance and feature selection", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("ml", "ML_Research_Validation_Figures", "ML composite validation figure with model performance and feature selection", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ---
@@ -577,25 +602,25 @@ cat('<p><strong>Main conclusion:</strong> Integrated analysis identified ',
 ### GO Biological Process Enrichment
 
 ```{r enr-go-bp, results='asis'}
-include_figure("pathway", "pathway_go_bp", "Top enriched Gene Ontology Biological Process terms", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("pathway", "pathway_go_bp", "Top enriched Gene Ontology Biological Process terms", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### GO Molecular Function Enrichment
 
 ```{r enr-go-mf, results='asis'}
-include_figure("pathway", "pathway_go_mf", "Top enriched Gene Ontology Molecular Function terms", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("pathway", "pathway_go_mf", "Top enriched Gene Ontology Molecular Function terms", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### GO Cellular Component Enrichment
 
 ```{r enr-go-cc, results='asis'}
-include_figure("pathway", "pathway_go_cc", "Top enriched Gene Ontology Cellular Component terms", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("pathway", "pathway_go_cc", "Top enriched Gene Ontology Cellular Component terms", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### KEGG Pathway Analysis
 
 ```{r enr-kegg, results='asis'}
-include_figure("pathway", "pathway_kegg", "Top enriched KEGG pathways — dot size proportional to gene count, colour indicates adjusted p-value", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("pathway", "pathway_kegg", "Top enriched KEGG pathways — dot size proportional to gene count, colour indicates adjusted p-value", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 <div class="interp-block">
@@ -605,13 +630,13 @@ include_figure("pathway", "pathway_kegg", "Top enriched KEGG pathways — dot si
 ### Gene-Concept Network
 
 ```{r enr-cnet, results='asis'}
-include_figure("pathway", "pathway_cnetplot", "Gene-concept network plot linking top GO terms to their constituent genes", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("pathway", "pathway_cnetplot", "Gene-concept network plot linking top GO terms to their constituent genes", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### Enrichment Map
 
 ```{r enr-emap, results='asis'}
-include_figure("pathway", "pathway_emapplot", "Enrichment map showing relationships between significant GO-BP terms", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", "The results align with expected tolerances for high-quality TCGA omics data.")
+include_figure("pathway", "pathway_emapplot", "Enrichment map showing relationships between significant GO-BP terms", "Visualizing this data allows us to confirm expected biological distributions and technical data quality before further analysis.", paste0("The results align with expected tolerances for high-quality ", data_source_label, "."))
 ```
 
 ### Top KEGG Pathways Table
@@ -651,7 +676,7 @@ if (file.exists(bp_csv)) {
 cat('<div class="interp-block" style="font-size: 1.1em; line-height: 1.6;">\n')
 
 cat('<h3>Summary of Multi-Omics Analysis</h3>\n')
-cat('<p>This comprehensive multi-omics analysis of <strong>', fmt(qc_ml$samples$total_valid_patients), '</strong> primary tumor samples successfully integrated transcriptomic, epigenomic, copy number, and mutational landscapes to decode the molecular drivers of patient survival.</p>\n')
+cat('<p>This comprehensive multi-omics analysis of <strong>', fmt(qc_ml$samples$total_valid_patients), '</strong> ', sample_class_label, ' samples successfully integrated transcriptomic, epigenomic, copy number, and mutational landscapes to decode the molecular drivers of patient survival.</p>\n')
 
 cat('<ul>\n')
 cat('<li><strong>Most Important MOFA Factor:</strong> Factor 1 captured the largest fraction of shared variance across the RNA-seq and DNA Methylation views, suggesting a powerful epigenetically-driven transcriptomic program.</li>\n')

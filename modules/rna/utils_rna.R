@@ -266,7 +266,10 @@ rna_check_file <- function(path, label = "Input file") {
 #'
 #' @param mat  Matrix whose column names will be checked
 #' @param label  Descriptive label for error reporting
-rna_validate_barcodes <- function(mat, label = "matrix") {
+rna_validate_barcodes <- function(mat, label = "matrix", metadata_supplied = FALSE) {
+  if (isTRUE(metadata_supplied)) {
+    return(invisible(TRUE))
+  }
   ids <- colnames(mat)
   if (!all(nchar(ids) == 12)) {
     warning(sprintf(

@@ -57,7 +57,7 @@ load_int_packages <- function() {
 # ==============================================================================
 
 #' Read omics matrix
-load_omics_matrix <- function(file_path, name) {
+load_omics_matrix <- function(file_path, name, metadata = NULL) {
   if (!file.exists(file_path)) {
     stop(sprintf("Input %s matrix not found: %s", name, file_path))
   }
@@ -65,7 +65,38 @@ load_omics_matrix <- function(file_path, name) {
   
   # Standardize barcodes to 12 chars if needed
   if (is.matrix(mat) || is.data.frame(mat)) {
-    colnames(mat) <- substr(colnames(mat), 1, 12)
+    if (is.null(metadata)) {
+      colnames(mat) <- substr(colnames(mat), 1, 12)
+    } else {
+      cols <- colnames(mat)
+      meta_pids <- unique(metadata$patient_id)
+      if (all(cols %in% meta_pids)) {
+        # Already standardized to patient_ids
+      } else {
+        # Try remapping via metadata sample_id -> patient_id
+        # Source modules/utils_metadata.R if functions are not available
+        if (!exists("get_patient_id")) {
+          # Try to find utils_metadata.R
+          for (p in c("modules/utils_metadata.R", "../utils_metadata.R", "utils_metadata.R")) {
+            if (file.exists(p)) {
+              source(p)
+              break
+            }
+          }
+        }
+        
+        if (exists("get_patient_id")) {
+          tryCatch({
+            colnames(mat) <- get_patient_id(cols, metadata)
+          }, error = function(e) {
+            # Fallback to TCGA truncation if mapping fails
+            colnames(mat) <- substr(cols, 1, 12)
+          })
+        } else {
+          colnames(mat) <- substr(cols, 1, 12)
+        }
+      }
+    }
   }
   
   return(mat)

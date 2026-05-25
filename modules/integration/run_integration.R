@@ -45,7 +45,9 @@ option_list <- list(
   make_option(c("-f", "--factors"), type = "integer", default = 15,
               help = "Number of latent factors to learn [default= %default]"),
   make_option(c("-i", "--iter"), type = "integer", default = 1000,
-              help = "Max iterations [default= %default]")
+              help = "Max iterations [default= %default]"),
+  make_option(c("--metadata"), type = "character", default = NULL,
+              help = "Path to sample metadata CSV file (optional)")
 )
 
 opt_parser <- OptionParser(
@@ -83,24 +85,42 @@ tryCatch({
   int_msg(sprintf("Start time : %s", Sys.time()))
   int_msg(sprintf("Output dir : %s", opt$outdir))
   
+  # Load metadata if supplied
+  metadata <- NULL
+  if (!is.null(opt$metadata) && opt$metadata != "") {
+    meta_utils_path <- file.path(dirname(script_dir), "utils_metadata.R")
+    if (file.exists(meta_utils_path)) {
+      source(meta_utils_path)
+    } else if (file.exists("modules/utils_metadata.R")) {
+      source("modules/utils_metadata.R")
+    }
+    
+    if (exists("load_metadata")) {
+      int_msg(sprintf("Loading metadata: %s", opt$metadata))
+      metadata <- load_metadata(opt$metadata)
+    } else {
+      int_msg("utils_metadata.R not found. Running without metadata layer.", level = "WARN")
+    }
+  }
+  
   # ==============================================================================
   # 1. LOAD MATRICES
   # ==============================================================================
   int_step(1, "Loading Preprocessed Matrices")
   
-  rna  <- load_omics_matrix(opt$rna, "RNA")
+  rna  <- load_omics_matrix(opt$rna, "RNA", metadata)
   int_msg(sprintf("RNA: %d genes x %d samples", nrow(rna), ncol(rna)))
   qc_metrics <- add_int_qc(qc_metrics, "features", "RNA", nrow(rna))
   
-  meth <- load_omics_matrix(opt$meth, "Methylation")
+  meth <- load_omics_matrix(opt$meth, "Methylation", metadata)
   int_msg(sprintf("Methylation: %d probes x %d samples", nrow(meth), ncol(meth)))
   qc_metrics <- add_int_qc(qc_metrics, "features", "Methylation", nrow(meth))
   
-  cnv  <- load_omics_matrix(opt$cnv, "CNV")
+  cnv  <- load_omics_matrix(opt$cnv, "CNV", metadata)
   int_msg(sprintf("CNV: %d genes x %d samples", nrow(cnv), ncol(cnv)))
   qc_metrics <- add_int_qc(qc_metrics, "features", "CNV", nrow(cnv))
   
-  snv  <- load_omics_matrix(opt$snv, "SNV")
+  snv  <- load_omics_matrix(opt$snv, "SNV", metadata)
   int_msg(sprintf("SNV: %d genes x %d samples", nrow(snv), ncol(snv)))
   qc_metrics <- add_int_qc(qc_metrics, "features", "SNV", nrow(snv))
   

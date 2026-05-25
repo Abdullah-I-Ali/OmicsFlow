@@ -46,7 +46,11 @@ option_list <- list(
   make_option(c("--final_features"), type = "integer", default = 100,
               help = "Top genes by variance on training set [default= %default]"),
   make_option(c("--train_ratio"), type = "numeric", default = 0.80,
-              help = "Train/Test split ratio [default= %default]")
+              help = "Train/Test split ratio [default= %default]"),
+  make_option(c("--clinical_map"), type = "character", default = NULL,
+              help = "Path to clinical column mapping JSON file (optional)"),
+  make_option(c("--metadata"), type = "character", default = NULL,
+              help = "Path to sample metadata CSV file (optional)")
 )
 
 opt_parser <- OptionParser(
@@ -94,30 +98,47 @@ tryCatch({
   mofa <- loaded$model
   
   rna <- readRDS(opt$rna)
-  clinical_raw <- read.delim(opt$clinical, stringsAsFactors = FALSE)
+  
+  # Source and load metadata if supplied
+  metadata <- NULL
+  if (!is.null(opt$metadata) && opt$metadata != "") {
+    meta_utils_path <- file.path(dirname(script_dir), "utils_metadata.R")
+    if (file.exists(meta_utils_path)) {
+      source(meta_utils_path)
+    } else if (file.exists("modules/utils_metadata.R")) {
+      source("modules/utils_metadata.R")
+    }
+    if (exists("load_metadata")) {
+      ml_msg(sprintf("Loading metadata: %s", opt$metadata))
+      metadata <- load_metadata(opt$metadata)
+    }
+  }
+  
+  # Source clinical abstraction layer
+  clinical_utils_path <- file.path(dirname(script_dir), "utils_clinical.R")
+  if (file.exists(clinical_utils_path)) {
+    source(clinical_utils_path)
+  } else if (file.exists("modules/utils_clinical.R")) {
+    source("modules/utils_clinical.R")
+  }
+  
+  clinical_standardized <- load_clinical_data(opt$clinical, opt$clinical_map, metadata)
   
   rownames(rna) <- str_replace(rownames(rna), "_RNA$", "")
   
   ml_msg("All data loaded")
   ml_msg(sprintf("RNA matrix: %d genes x %d samples", nrow(rna), ncol(rna)), level="DETAILS")
-  ml_msg(sprintf("Clinical rows: %d", nrow(clinical_raw)), level="DETAILS")
+  ml_msg(sprintf("Clinical rows: %d", nrow(clinical_standardized)), level="DETAILS")
   
   # ==============================================================================
   # 2. PREPARE SURVIVAL DATA
   # ==============================================================================
   ml_step(2, "Preparing Survival Data")
   
-  clinical <- data.frame(
-    patient_id = clinical_raw$bcr_patient_barcode,
-    os_time    = as.numeric(ifelse(
-      clinical_raw$vital_status == "Dead",
-      clinical_raw$days_to_death,
-      clinical_raw$days_to_last_follow_up)),
-    os_event   = ifelse(clinical_raw$vital_status == "Dead", 1, 0),
-    age        = as.numeric(clinical_raw$age_at_diagnosis) / 365.25,
-    gender     = as.factor(clinical_raw$gender),
-    stringsAsFactors = FALSE
-  )
+  clinical <- clinical_standardized
+  if ("gender" %in% colnames(clinical)) {
+    clinical$gender <- as.factor(clinical$gender)
+  }
   
   clinical <- clinical %>% filter(!is.na(os_time) & os_time > 0)
   

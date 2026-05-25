@@ -17,10 +17,10 @@
 #'   - probe_filter_log.csv
 #'   - final_sample_ids.txt
 export_meth_results <- function(meth_m_top, met_beta_top, meth_m_full, met_beta_full, 
-                                sample_info, qc_metrics, probe_log, outdir) {
+                                sample_info, qc_metrics, probe_log, outdir, metadata_supplied = FALSE) {
 
-  meth_validate_barcodes(meth_m_top,  "meth_m_top (MOFA)")
-  meth_validate_barcodes(meth_m_full, "meth_m_full (ML)")
+  meth_validate_barcodes(meth_m_top,  "meth_m_top (MOFA)", metadata_supplied)
+  meth_validate_barcodes(meth_m_full, "meth_m_full (ML)", metadata_supplied)
 
   # --- MOFA / DIABLO matrices ---
   path_mofa_m <- file.path(outdir, "methylation_processed_matrix.rds")

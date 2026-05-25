@@ -5,7 +5,7 @@
 
 source("modules/snv/utils_snv.R")
 
-export_snv_results <- function(snv_matrix, maf_filtered, outdir) {
+export_snv_results <- function(snv_matrix, maf_filtered, outdir, sample_info = NULL) {
   snv_step("Export", "Saving Processed Data")
   
   if (!dir.exists(outdir)) dir.create(outdir, recursive = TRUE)
@@ -22,10 +22,12 @@ export_snv_results <- function(snv_matrix, maf_filtered, outdir) {
   snv_msg("Saved: snv_maf_clean.rds")
   
   # Sample metadata
-  sample_info <- data.frame(
-    patient_id = colnames(snv_matrix),
-    stringsAsFactors = FALSE
-  )
+  if (is.null(sample_info)) {
+    sample_info <- data.frame(
+      patient_id = colnames(snv_matrix),
+      stringsAsFactors = FALSE
+    )
+  }
   path_meta_csv <- file.path(outdir, "sample_metadata.csv")
   path_meta_rds <- file.path(outdir, "sample_metadata.rds")
   write.csv(sample_info, path_meta_csv, row.names = FALSE)

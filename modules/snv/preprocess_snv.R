@@ -35,6 +35,8 @@ option_list <- list(
               help = "Path to raw SNV mutation data (.rds) [default= %default]"),
   make_option(c("-o", "--outdir"), type = "character", default = "results/snv/",
               help = "Output directory for SNV results [default= %default]"),
+  make_option(c("-m", "--metadata"), type = "character", default = NULL,
+              help = "Path to sample metadata CSV file (optional)"),
   make_option(c("-f", "--freq"), type = "numeric", default = 0.02,
               help = "Minimum mutation frequency threshold [default= %default]"),
   make_option(c("-t", "--topn"), type = "integer", default = 3000,
@@ -63,6 +65,7 @@ script_dir <- tryCatch(
 source(file.path(script_dir, "utils_snv.R"))
 source(file.path(script_dir, "qc_snv.R"))
 source(file.path(script_dir, "export_snv.R"))
+source(file.path(dirname(script_dir), "utils_metadata.R"))
 
 # ------------------------------------------------------------------------------
 # INITIALISE
@@ -77,10 +80,15 @@ tryCatch({
   
   qc_metrics <- init_snv_qc()
   
+  metadata <- load_metadata(opt$metadata)
+  
   snv_banner("OmicsFlow v1.0.0 | SNV Preprocessing")
   snv_msg(sprintf("Start time : %s", Sys.time()))
   snv_msg(sprintf("Input      : %s", opt$input))
   snv_msg(sprintf("Output dir : %s", opt$outdir))
+  if (!is.null(metadata)) {
+    snv_msg(sprintf("Metadata   : %s (%d samples)", opt$metadata, nrow(metadata)))
+  }
   
   # ==============================================================================
   # 1. LOAD DATA
@@ -142,12 +150,21 @@ tryCatch({
   # ==============================================================================
   snv_step(4, "Standardizing Barcodes to Patient Level")
   
-  n_samples_before <- length(unique(mut_df$sample_id))
-  mut_df$sample_id <- substr(mut_df$sample_id, 1, 12)
-  n_patients_after <- length(unique(mut_df$sample_id))
-  
-  snv_msg(sprintf("Standardized to 12-char patient barcodes: %d unique samples -> %d unique patients", 
-                  n_samples_before, n_patients_after))
+  if (!is.null(metadata)) {
+    # Filter to samples present in metadata
+    mut_df <- mut_df %>% filter(sample_id %in% metadata$sample_id)
+    n_samples_before <- length(unique(mut_df$sample_id))
+    mut_df$sample_id <- get_patient_id(mut_df$sample_id, metadata)
+    n_patients_after <- length(unique(mut_df$sample_id))
+    snv_msg(sprintf("Filtered & mapped to metadata: %d unique samples -> %d unique patients", 
+                    n_samples_before, n_patients_after))
+  } else {
+    n_samples_before <- length(unique(mut_df$sample_id))
+    mut_df$sample_id <- substr(mut_df$sample_id, 1, 12)
+    n_patients_after <- length(unique(mut_df$sample_id))
+    snv_msg(sprintf("Standardized to 12-char patient barcodes: %d unique samples -> %d unique patients", 
+                    n_samples_before, n_patients_after))
+  }
   
   n_before_collapse <- nrow(mut_df)
   mut_df <- mut_df %>% distinct(gene, sample_id)
@@ -279,7 +296,18 @@ tryCatch({
   # 9. VISUALIZATION & OUTPUT
   # ==============================================================================
   generate_snv_qc_plots(snv_final, maf_filtered, opt$outdir)
-  export_snv_results(snv_final, maf_filtered, opt$outdir)
+  if (!is.null(metadata)) {
+    sample_info <- metadata[match(colnames(snv_final), metadata$patient_id), ]
+  } else {
+    sample_info <- data.frame(
+      sample_id        = colnames(snv_final),
+      patient_id       = colnames(snv_final),
+      sample_class     = "primary_tumor",
+      batch            = "batch1",
+      stringsAsFactors = FALSE
+    )
+  }
+  export_snv_results(snv_final, maf_filtered, opt$outdir, sample_info)
   export_snv_qc(qc_metrics, opt$outdir)
   
   snv_banner("SNV MODULE COMPLETE \u2714")

@@ -23,6 +23,8 @@ option_list <- list(
               help="Path to input RNA-seq RDS (SummarizedExperiment or matrix)"),
   make_option("--outdir",       type="character", default="results/rna/",
               help="Output directory [default: results/rna/]"),
+  make_option("--metadata",     type="character", default=NULL,
+              help="Path to sample metadata CSV file (optional)"),
   make_option("--cpm-threshold",type="double",    default=1.0,
               help="CPM threshold for low-expression filtering [default: 1]"),
   make_option("--cpm-min-pct",  type="double",    default=0.20,
@@ -62,6 +64,7 @@ script_dir <- tryCatch(
 source(file.path(script_dir, "utils_rna.R"))
 source(file.path(script_dir, "qc_rna.R"))
 source(file.path(script_dir, "export_rna.R"))
+source(file.path(dirname(script_dir), "utils_metadata.R"))
 
 # ------------------------------------------------------------------------------
 # INITIALISE
@@ -71,10 +74,15 @@ set.seed(42)
 rna_ensure_dirs(args$outdir)
 qc <- rna_init_qc()
 
+metadata <- load_metadata(args$metadata)
+
 rna_banner("OmicsFlow v1.0.0 | RNA-seq Preprocessing")
 rna_msg(sprintf("Start time : %s", Sys.time()))
 rna_msg(sprintf("Input      : %s", args$input))
 rna_msg(sprintf("Output dir : %s", args$outdir))
+if (!is.null(metadata)) {
+  rna_msg(sprintf("Metadata   : %s (%d samples)", args$metadata, nrow(metadata)))
+}
 
 # ==============================================================================
 # STEP 1 — DATA LOADING
@@ -101,38 +109,76 @@ rna_msg(sprintf("Raw matrix : %s genes x %s samples",
 # ==============================================================================
 rna_step(2, "Sample Selection & Deduplication")
 
-# --- Keep only primary tumor samples (TCGA barcode positions 14-15 = "01") ---
-sample_type_code <- substr(colnames(rna_counts), 14, 15)
-rna_counts       <- rna_counts[, sample_type_code == "01", drop = FALSE]
-qc <- rna_update_qc(qc, "samples", "primary_tumor", ncol(rna_counts))
-rna_msg(sprintf("Primary tumor samples : %d", ncol(rna_counts)))
-
-# --- Save FULL barcodes before any truncation (needed for batch extraction) ---
-full_barcodes <- colnames(rna_counts)
-
-# --- Deduplicate: per patient keep aliquot with highest library size ---
-patient_ids   <- substr(colnames(rna_counts), 1, 12)
-lib_sizes_all <- colSums(rna_counts)
-
-keep_samples <- tapply(
-  seq_len(ncol(rna_counts)),
-  patient_ids,
-  function(idx) idx[which.max(lib_sizes_all[idx])]
-)
-keep_idx <- sort(unlist(keep_samples))
-
-rna_counts <- rna_counts[, keep_idx, drop = FALSE]
-
-# Preserve full barcodes for the kept samples (needed for Plate ID extraction)
-original_barcodes        <- full_barcodes[keep_idx]
-names(original_barcodes) <- substr(original_barcodes, 1, 12)
-
-# Rename columns to 12-char patient IDs for downstream integration
-colnames(rna_counts) <- substr(colnames(rna_counts), 1, 12)
-
-qc <- rna_update_qc(qc, "samples", "after_deduplication", ncol(rna_counts))
-rna_msg(sprintf("After deduplication   : %d unique patients", ncol(rna_counts)))
-rna_msg("Full barcodes saved for batch extraction")
+if (!is.null(metadata)) {
+  # --- Filter columns to those in metadata ---
+  common_samples <- intersect(colnames(rna_counts), metadata$sample_id)
+  if (length(common_samples) == 0) {
+    stop("None of the raw count matrix column names match the sample_id column in metadata.")
+  }
+  rna_counts <- rna_counts[, common_samples, drop = FALSE]
+  
+  qc <- rna_update_qc(qc, "samples", "primary_tumor", ncol(rna_counts))
+  rna_msg(sprintf("Samples matched to metadata : %d", ncol(rna_counts)))
+  
+  # --- Save FULL barcodes/sample IDs before any truncation ---
+  full_barcodes <- colnames(rna_counts)
+  
+  # --- Deduplicate: per patient keep aliquot with highest library size ---
+  patient_ids   <- get_patient_id(colnames(rna_counts), metadata)
+  lib_sizes_all <- colSums(rna_counts)
+  
+  keep_samples <- tapply(
+    seq_len(ncol(rna_counts)),
+    patient_ids,
+    function(idx) idx[which.max(lib_sizes_all[idx])]
+  )
+  keep_idx <- sort(unlist(keep_samples))
+  
+  rna_counts <- rna_counts[, keep_idx, drop = FALSE]
+  
+  # Preserve original barcodes/sample IDs for kept samples
+  original_barcodes        <- full_barcodes[keep_idx]
+  names(original_barcodes) <- get_patient_id(original_barcodes, metadata)
+  
+  # Rename columns to patient IDs
+  colnames(rna_counts) <- get_patient_id(colnames(rna_counts), metadata)
+  
+  qc <- rna_update_qc(qc, "samples", "after_deduplication", ncol(rna_counts))
+  rna_msg(sprintf("After deduplication   : %d unique patients", ncol(rna_counts)))
+} else {
+  # --- Keep only primary tumor samples (TCGA barcode positions 14-15 = "01") ---
+  sample_type_code <- substr(colnames(rna_counts), 14, 15)
+  rna_counts       <- rna_counts[, sample_type_code == "01", drop = FALSE]
+  qc <- rna_update_qc(qc, "samples", "primary_tumor", ncol(rna_counts))
+  rna_msg(sprintf("Primary tumor samples : %d", ncol(rna_counts)))
+  
+  # --- Save FULL barcodes before any truncation (needed for batch extraction) ---
+  full_barcodes <- colnames(rna_counts)
+  
+  # --- Deduplicate: per patient keep aliquot with highest library size ---
+  patient_ids   <- substr(colnames(rna_counts), 1, 12)
+  lib_sizes_all <- colSums(rna_counts)
+  
+  keep_samples <- tapply(
+    seq_len(ncol(rna_counts)),
+    patient_ids,
+    function(idx) idx[which.max(lib_sizes_all[idx])]
+  )
+  keep_idx <- sort(unlist(keep_samples))
+  
+  rna_counts <- rna_counts[, keep_idx, drop = FALSE]
+  
+  # Preserve full barcodes for the kept samples (needed for Plate ID extraction)
+  original_barcodes        <- full_barcodes[keep_idx]
+  names(original_barcodes) <- substr(original_barcodes, 1, 12)
+  
+  # Rename columns to 12-char patient IDs for downstream integration
+  colnames(rna_counts) <- substr(colnames(rna_counts), 1, 12)
+  
+  qc <- rna_update_qc(qc, "samples", "after_deduplication", ncol(rna_counts))
+  rna_msg(sprintf("After deduplication   : %d unique patients", ncol(rna_counts)))
+  rna_msg("Full barcodes saved for batch extraction")
+}
 
 # ==============================================================================
 # STEP 3 — QUALITY CONTROL: LIBRARY SIZE + ZERO-GENE REMOVAL
@@ -321,11 +367,15 @@ rna_msg(sprintf("Samples remaining : %d", ncol(rna_mat)))
 # STEP 10 — BATCH EFFECT CORRECTION (Plate ID, positions 22-25)
 # ==============================================================================
 rna_step(10, "Batch Effect Correction")
-rna_msg("Batch variable: Plate ID (TCGA barcode positions 22-25)")
+if (!is.null(metadata)) {
+  rna_msg("Batch variable: From Metadata")
+} else {
+  rna_msg("Batch variable: Plate ID (TCGA barcode positions 22-25)")
+}
 
 # Recover full barcodes for surviving samples using the saved named vector
 matched_barcodes <- original_barcodes[colnames(rna_mat)]
-plate_id         <- substr(matched_barcodes, 22, 25)
+plate_id         <- get_batch(matched_barcodes, metadata, omics_type = "rna")
 batch_info       <- as.factor(plate_id)
 
 n_batches_total <- nlevels(batch_info)
@@ -471,18 +521,25 @@ generate_rna_validation_figures(
 # ==============================================================================
 rna_step(14, "Saving Outputs")
 
-sample_info <- data.frame(
-  patient_id       = colnames(rna_top),
-  batch            = as.character(batch_info),
-  stringsAsFactors = FALSE
-)
+if (!is.null(metadata)) {
+  sample_info <- metadata[match(original_barcodes[colnames(rna_top)], metadata$sample_id), ]
+} else {
+  sample_info <- data.frame(
+    sample_id        = original_barcodes[colnames(rna_top)],
+    patient_id       = colnames(rna_top),
+    sample_class     = "primary_tumor",
+    batch            = as.character(batch_info),
+    stringsAsFactors = FALSE
+  )
+}
 
 export_rna_results(
   rna_scaled  = rna_scaled,
   rna_ml      = rna_ml,
   sample_info = sample_info,
   qc_metrics  = qc,
-  outdir      = args$outdir
+  outdir      = args$outdir,
+  metadata_supplied = !is.null(metadata)
 )
 
 # ==============================================================================

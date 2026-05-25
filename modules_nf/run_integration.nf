@@ -20,6 +20,7 @@ process RUN_INTEGRATION {
     path "output_integration/*",               emit: all_outputs
 
     script:
+    def metadata_arg = params.metadata ? "--metadata ${params.metadata}" : ""
     """
     Rscript ${projectDir}/modules/integration/run_integration.R \\
         --rna     ${rna_matrix} \\
@@ -28,6 +29,7 @@ process RUN_INTEGRATION {
         --snv     ${snv_matrix} \\
         --outdir  output_integration/ \\
         --factors ${params.mofa_factors} \\
-        --iter    ${params.mofa_iter}
+        --iter    ${params.mofa_iter} \\
+        ${metadata_arg}
     """
 }

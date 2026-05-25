@@ -42,7 +42,9 @@ option_list <- list(
   make_option(c("--rna"), type = "character", default = "results/ml/rna_for_pathway.rds",
               help = "Path to RNA matrix for background universe (.rds)"),
   make_option(c("-o", "--outdir"), type = "character", default = "results/enrichment/",
-              help = "Output directory [default= %default]")
+              help = "Output directory [default= %default]"),
+  make_option(c("--validation_keywords"), type = "character", default = NULL,
+              help = "Path to keywords JSON/txt or comma-separated string (optional)")
 )
 
 opt_parser <- OptionParser(
@@ -181,12 +183,27 @@ tryCatch({
   }
   
   # ==============================================================================
-  # 6. ECM VALIDATION
+  # 6. KEYWORD VALIDATION
   # ==============================================================================
-  path_step(6, "ECM / Tumor Microenvironment Validation")
-  ecm_keywords <- c("extracellular", "collagen", "matrix", "fibrosis", "cirrhosis", "ECM", "integrin", "laminin", "basement")
+  validation_keywords <- c("extracellular", "collagen", "matrix", "fibrosis", "cirrhosis", "ECM", "integrin", "laminin", "basement")
+  is_custom_kw <- FALSE
+  if (!is.null(opt$validation_keywords) && opt$validation_keywords != "") {
+    is_custom_kw <- TRUE
+    if (file.exists(opt$validation_keywords)) {
+      tryCatch({
+        validation_keywords <- jsonlite::fromJSON(opt$validation_keywords)
+      }, error = function(e) {
+        validation_keywords <- readLines(opt$validation_keywords, warn = FALSE)
+      })
+    } else {
+      validation_keywords <- trimws(strsplit(opt$validation_keywords, ",")[[1]])
+    }
+    validation_keywords <- validation_keywords[validation_keywords != ""]
+  }
   
-  for (kw in ecm_keywords) {
+  path_step(6, if (is_custom_kw) "Functional Keyword Validation" else "ECM / Tumor Microenvironment Validation")
+  
+  for (kw in validation_keywords) {
     found <- FALSE
     if (!is.null(go_bp) && nrow(go_bp) > 0) {
       hits <- grep(kw, go_bp@result$Description, ignore.case = TRUE)
