@@ -75,6 +75,23 @@ def validateInputs() {
         error "Clinical data not found: ${params.clinical}"
     }
 
+    if (params.metadata && !file(params.metadata).exists()) {
+        error "Metadata file not found: ${params.metadata}"
+    }
+
+    if (params.clinical_map && !file(params.clinical_map).exists()) {
+        error "Clinical map file not found: ${params.clinical_map}"
+    }
+
+    if (params.validation_keywords && (params.validation_keywords.endsWith(".json") || params.validation_keywords.endsWith(".txt")) && !file(params.validation_keywords).exists()) {
+        error "Validation keywords file not found: ${params.validation_keywords}"
+    }
+
+    def csv_pattern = ~/.*\.csv$/
+    if (params.metadata && !(params.metadata =~ csv_pattern)) {
+        error "Metadata input must be .csv format: ${params.metadata}"
+    }
+
     // --- Format validation ---
     def rds_pattern = ~/.*\.rds$/
     if (params.rna  && !(params.rna  =~ rds_pattern)) { error "RNA input must be .rds format: ${params.rna}"   }
@@ -126,6 +143,7 @@ def printBanner() {
     ║  CNV          : ${params.cnv  ?: 'not provided'}
     ║  SNV          : ${params.snv  ?: 'not provided'}
     ║  Clinical     : ${params.clinical ?: 'not provided'}
+    ║  Metadata     : ${params.metadata ?: 'not provided'}
     ║  Output       : ${params.outdir}
     ╚══════════════════════════════════════════════════════════════╝
     """.stripIndent()
@@ -145,10 +163,15 @@ workflow {
     // PHASE 1: PREPROCESSING (parallel execution for all supplied omics)
     // =========================================================================
 
+    // --- Metadata Channel ---
+    ch_metadata = params.metadata
+        ? Channel.fromPath(params.metadata, checkIfExists: true)
+        : Channel.fromPath("${projectDir}/assets/NO_FILE_METADATA", checkIfExists: false).ifEmpty(file("NO_FILE_METADATA"))
+
     // --- RNA ---
     if (params.rna) {
         ch_rna_input = Channel.fromPath(params.rna, checkIfExists: true)
-        PREPROCESS_RNA(ch_rna_input)
+        PREPROCESS_RNA(ch_rna_input, ch_metadata)
     }
 
     // --- Methylation ---
@@ -164,7 +187,7 @@ workflow {
             ? Channel.fromPath(params.cross_react, checkIfExists: true)
             : Channel.fromPath("${projectDir}/assets/NO_FILE_CROSSREACT", checkIfExists: false).ifEmpty(file("NO_FILE_CROSSREACT"))
 
-        PREPROCESS_METH(ch_meth_input, ch_clinical, ch_cross_react)
+        PREPROCESS_METH(ch_meth_input, ch_clinical, ch_cross_react, ch_metadata)
     }
 
     // --- CNV ---
@@ -175,13 +198,13 @@ workflow {
             ? Channel.fromPath(params.gene_coords, checkIfExists: true)
             : Channel.fromPath("${projectDir}/assets/NO_FILE_CACHE", checkIfExists: false).ifEmpty(file("NO_FILE_CACHE"))
 
-        PREPROCESS_CNV(ch_cnv_input, ch_gene_coords)
+        PREPROCESS_CNV(ch_cnv_input, ch_gene_coords, ch_metadata)
     }
 
     // --- SNV ---
     if (params.snv) {
         ch_snv_input = Channel.fromPath(params.snv, checkIfExists: true)
-        PREPROCESS_SNV(ch_snv_input)
+        PREPROCESS_SNV(ch_snv_input, ch_metadata)
     }
 
     // =========================================================================

@@ -20,12 +20,14 @@ process RUN_ENRICHMENT {
     path "output_enrichment/*",                       emit: all_outputs
 
     script:
+    def keywords_arg = params.validation_keywords ? "--validation_keywords ${params.validation_keywords}" : ""
     """
     Rscript ${projectDir}/modules/enrichment/run_enrichment.R \\
         --mofa    ${mofa_top_genes} \\
         --rf      ${rf_top_genes} \\
         --lasso   ${lasso_genes} \\
         --rna     ${rna_for_pathway} \\
-        --outdir  output_enrichment/
+        --outdir  output_enrichment/ \\
+        ${keywords_arg}
     """
 }

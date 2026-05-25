@@ -34,11 +34,11 @@
 #' @param qc_metrics   Named list — accumulated QC statistics
 #' @param outdir       Character — base output directory
 export_rna_results <- function(rna_scaled, rna_ml, sample_info,
-                                qc_metrics, outdir) {
+                                qc_metrics, outdir, metadata_supplied = FALSE) {
 
   # --- Validate barcodes before saving ---
-  rna_validate_barcodes(rna_scaled, "rna_scaled (MOFA)")
-  rna_validate_barcodes(rna_ml,     "rna_ml (ML)")
+  rna_validate_barcodes(rna_scaled, "rna_scaled (MOFA)", metadata_supplied)
+  rna_validate_barcodes(rna_ml,     "rna_ml (ML)", metadata_supplied)
 
   # --------------------------------------------------------------------------
   # rna_processed_matrix.rds — Z-scored matrix (primary integration output)

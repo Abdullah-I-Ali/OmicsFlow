@@ -313,7 +313,10 @@ meth_check_file <- function(path, label = "Input file") {
 }
 
 #' Check that column names look like 12-char TCGA patient barcodes
-meth_validate_barcodes <- function(mat, label = "matrix") {
+meth_validate_barcodes <- function(mat, label = "matrix", metadata_supplied = FALSE) {
+  if (isTRUE(metadata_supplied)) {
+    return(invisible(TRUE))
+  }
   ids <- colnames(mat)
   if (!all(nchar(ids) == 12)) {
     warning(sprintf("[%s] %d / %d column names are not exactly 12 characters.",

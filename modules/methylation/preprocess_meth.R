@@ -23,6 +23,8 @@ option_list <- list(
               help="Path to input Methylation Beta-value RDS"),
   make_option("--outdir",       type="character", default="results/methylation/",
               help="Output directory [default: results/methylation/]"),
+  make_option("--metadata",     type="character", default=NULL,
+              help="Path to sample metadata CSV file (optional)"),
   make_option("--clinical",     type="character", default=NULL,
               help="Path to clinical data TSV (optional, for ComBat covariate protection)"),
   make_option("--det-pval",     type="character", default=NULL,
@@ -34,7 +36,9 @@ option_list <- list(
   make_option("--n-top",        type="integer",   default=5000L,
               help="Number of top variable probes to select for MOFA [default: 5000]"),
   make_option("--knn-k",        type="integer",   default=10L,
-              help="k value for KNN imputation [default: 10]")
+              help="k value for KNN imputation [default: 10]"),
+  make_option("--clinical_map", type="character", default=NULL,
+              help="Clinical column mapping (JSON file/string) for custom cohorts [optional]")
 )
 
 parser <- OptionParser(option_list = option_list,
@@ -56,6 +60,8 @@ script_dir <- tryCatch(
 source(file.path(script_dir, "utils_meth.R"))
 source(file.path(script_dir, "qc_meth.R"))
 source(file.path(script_dir, "export_meth.R"))
+source(file.path(dirname(script_dir), "utils_metadata.R"))
+source(file.path(dirname(script_dir), "utils_clinical.R"))
 
 # ------------------------------------------------------------------------------
 # INITIALISE
@@ -66,12 +72,17 @@ meth_ensure_dirs(args$outdir)
 qc <- meth_init_qc()
 probe_log <- meth_init_probe_log()
 
+metadata <- load_metadata(args$metadata)
+
 epsilon <- 1e-7
 
 meth_banner("OmicsFlow v1.0.0 | DNA Methylation Preprocessing")
 meth_msg(sprintf("Start time : %s", Sys.time()))
 meth_msg(sprintf("Input      : %s", args$input))
 meth_msg(sprintf("Output dir : %s", args$outdir))
+if (!is.null(metadata)) {
+  meth_msg(sprintf("Metadata   : %s (%d samples)", args$metadata, nrow(metadata)))
+}
 
 # ==============================================================================
 # STEP 1 — DATA LOADING & DEDUPLICATION
@@ -90,22 +101,43 @@ meth_msg(sprintf("Raw matrix: %s probes x %s samples",
 qc <- meth_update_qc(qc, "samples", "raw", ncol(met_beta))
 qc <- meth_update_qc(qc, "probes", "raw", nrow(met_beta))
 
-# Keep primary tumor only (01)
-sample_type <- meth_extract_sample_type(colnames(met_beta))
-met_beta    <- met_beta[, !is.na(sample_type) & sample_type == "01", drop = FALSE]
-meth_msg(sprintf("Primary tumor samples: %d", ncol(met_beta)))
-qc <- meth_update_qc(qc, "samples", "primary_tumor", ncol(met_beta))
-
-# Deduplicate: keep sample with fewest NAs per patient
-na_counts   <- colSums(is.na(met_beta))
-met_beta    <- met_beta[, order(na_counts), drop = FALSE]
-patient_ids <- meth_extract_patient_id(colnames(met_beta))
-met_beta    <- met_beta[, !duplicated(patient_ids), drop = FALSE]
-
-# Rename to 12-char patient IDs
-colnames(met_beta) <- meth_extract_patient_id(colnames(met_beta))
-meth_msg(sprintf("After deduplication: %d unique patients", ncol(met_beta)))
-qc <- meth_update_qc(qc, "samples", "after_deduplication", ncol(met_beta))
+# Keep primary tumor or match to metadata
+if (!is.null(metadata)) {
+  common_samples <- intersect(colnames(met_beta), metadata$sample_id)
+  if (length(common_samples) == 0) {
+    stop("None of the raw methylation matrix column names match the sample_id column in metadata.")
+  }
+  met_beta <- met_beta[, common_samples, drop = FALSE]
+  qc <- meth_update_qc(qc, "samples", "primary_tumor", ncol(met_beta))
+  meth_msg(sprintf("Samples matched to metadata: %d", ncol(met_beta)))
+  
+  # Deduplicate: keep sample with fewest NAs per patient
+  na_counts   <- colSums(is.na(met_beta))
+  met_beta    <- met_beta[, order(na_counts), drop = FALSE]
+  patient_ids <- get_patient_id(colnames(met_beta), metadata)
+  met_beta    <- met_beta[, !duplicated(patient_ids), drop = FALSE]
+  
+  # Rename to patient IDs
+  colnames(met_beta) <- get_patient_id(colnames(met_beta), metadata)
+  meth_msg(sprintf("After deduplication: %d unique patients", ncol(met_beta)))
+  qc <- meth_update_qc(qc, "samples", "after_deduplication", ncol(met_beta))
+} else {
+  sample_type <- meth_extract_sample_type(colnames(met_beta))
+  met_beta    <- met_beta[, !is.na(sample_type) & sample_type == "01", drop = FALSE]
+  meth_msg(sprintf("Primary tumor samples: %d", ncol(met_beta)))
+  qc <- meth_update_qc(qc, "samples", "primary_tumor", ncol(met_beta))
+  
+  # Deduplicate: keep sample with fewest NAs per patient
+  na_counts   <- colSums(is.na(met_beta))
+  met_beta    <- met_beta[, order(na_counts), drop = FALSE]
+  patient_ids <- meth_extract_patient_id(colnames(met_beta))
+  met_beta    <- met_beta[, !duplicated(patient_ids), drop = FALSE]
+  
+  # Rename to 12-char patient IDs
+  colnames(met_beta) <- meth_extract_patient_id(colnames(met_beta))
+  meth_msg(sprintf("After deduplication: %d unique patients", ncol(met_beta)))
+  qc <- meth_update_qc(qc, "samples", "after_deduplication", ncol(met_beta))
+}
 
 probe_log <- meth_log_probes(probe_log, "After Dedup", met_beta)
 qc <- meth_update_qc(qc, "probes", "after_dedup", nrow(met_beta))
@@ -282,31 +314,52 @@ meth_step(5, "Batch Correction (ComBat)")
 met_temp <- readRDS(args$input)
 if (inherits(met_temp, "SummarizedExperiment")) met_temp <- assay(met_temp)
 
-st <- meth_extract_sample_type(colnames(met_temp))
-met_temp <- met_temp[, !is.na(st) & st == "01", drop = FALSE]
+if (!is.null(metadata)) {
+  common_temp <- intersect(colnames(met_temp), metadata$sample_id)
+  met_temp <- met_temp[, common_temp, drop = FALSE]
+  
+  na_counts_temp   <- colSums(is.na(met_temp))
+  patient_ids_temp <- get_patient_id(colnames(met_temp), metadata)
+  keep_idx <- tapply(seq_len(ncol(met_temp)), patient_ids_temp,
+                     function(idx) idx[which.min(na_counts_temp[idx])])
+  keep_idx <- sort(unlist(keep_idx))
+  met_temp <- met_temp[, keep_idx, drop = FALSE]
+  
+  orig_barcodes <- colnames(met_temp)
+  names(orig_barcodes) <- get_patient_id(orig_barcodes, metadata)
+} else {
+  st <- meth_extract_sample_type(colnames(met_temp))
+  met_temp <- met_temp[, !is.na(st) & st == "01", drop = FALSE]
+  
+  na_counts_temp   <- colSums(is.na(met_temp))
+  patient_ids_temp <- meth_extract_patient_id(colnames(met_temp))
+  keep_idx <- tapply(seq_len(ncol(met_temp)), patient_ids_temp,
+                     function(idx) idx[which.min(na_counts_temp[idx])])
+  keep_idx <- sort(unlist(keep_idx))
+  met_temp <- met_temp[, keep_idx, drop = FALSE]
+  
+  orig_barcodes <- colnames(met_temp)
+  names(orig_barcodes) <- meth_extract_patient_id(orig_barcodes)
+}
 
-na_counts_temp   <- colSums(is.na(met_temp))
-patient_ids_temp <- meth_extract_patient_id(colnames(met_temp))
-keep_idx <- tapply(seq_len(ncol(met_temp)), patient_ids_temp,
-                   function(idx) idx[which.min(na_counts_temp[idx])])
-keep_idx <- sort(unlist(keep_idx))
-met_temp <- met_temp[, keep_idx, drop = FALSE]
-
-orig_barcodes <- colnames(met_temp)
-names(orig_barcodes) <- meth_extract_patient_id(orig_barcodes)
-
-rm(met_temp, st, na_counts_temp, patient_ids_temp, keep_idx)
+rm(met_temp)
+if (exists("st")) rm(st)
+rm(na_counts_temp, patient_ids_temp, keep_idx)
 meth_msg(sprintf("Original barcodes recovered: %d", length(orig_barcodes)))
 
 # Match to current samples
 patient_current <- colnames(meth_m)
 orig_barcodes_matched <- orig_barcodes[patient_current]
 
-# Extract batch (plate ID)
-batch_vec        <- meth_extract_plate_id(orig_barcodes_matched)
+# Extract batch
+batch_vec        <- get_batch(orig_barcodes_matched, metadata, omics_type = "meth")
 names(batch_vec) <- patient_current
 batch_vec        <- factor(batch_vec)
-meth_msg(sprintf("Plate batches: %d", nlevels(batch_vec)))
+if (!is.null(metadata)) {
+  meth_msg(sprintf("Metadata batches: %d", nlevels(batch_vec)))
+} else {
+  meth_msg(sprintf("Plate batches: %d", nlevels(batch_vec)))
+}
 qc <- meth_update_qc(qc, "batches", "total_detected", nlevels(batch_vec))
 
 # Remove missing batch
@@ -331,58 +384,90 @@ qc <- meth_update_qc(qc, "samples", "after_batch_na_removal", ncol(meth_m))
 qc <- meth_update_qc(qc, "samples", "after_singleton_removal", ncol(meth_m))
 
 # Build biological model
-tss <- meth_extract_tss(orig_barcodes_matched)
-tss <- tss[match(colnames(meth_m), patient_current)]
+tss <- if (is.null(metadata)) {
+  meth_extract_tss(orig_barcodes_matched)
+} else {
+  get_center(orig_barcodes_matched, metadata)
+}
+
 final_covs <- character(0)
 model_data <- data.frame(row.names = colnames(meth_m))
 
-if (length(unique(tss)) > 1) {
-  model_data$TSS <- factor(tss)
-  final_covs <- c(final_covs, "TSS")
+if (!is.null(tss)) {
+  tss <- tss[match(colnames(meth_m), patient_current)]
+  if (length(unique(na.omit(tss))) > 1) {
+    model_data$TSS <- factor(tss)
+    final_covs <- c(final_covs, "TSS")
+  }
 }
 
 if (!is.null(args[["clinical"]]) && file.exists(args[["clinical"]])) {
   tryCatch({
-    clinical_raw <- read.delim(args[["clinical"]], stringsAsFactors = FALSE, check.names = FALSE)
-    if (all(c("bcr_patient_barcode", "age_at_diagnosis", "gender", "ajcc_pathologic_stage") %in% colnames(clinical_raw))) {
-      clinical_clean <- data.frame(
-        bcr_patient_barcode = clinical_raw$bcr_patient_barcode,
-        age_at_diagnosis    = as.numeric(clinical_raw$age_at_diagnosis),
-        gender              = as.factor(clinical_raw$gender),
-        stage               = clinical_raw$ajcc_pathologic_stage,
-        stringsAsFactors = FALSE
-      )
-      clinical_clean <- clinical_clean[!duplicated(clinical_clean$bcr_patient_barcode), ]
-      rownames(clinical_clean) <- clinical_clean$bcr_patient_barcode
-      matched <- clinical_clean[colnames(meth_m), , drop = FALSE]
-      matched$stage_clean <- meth_map_stage(matched$stage)
-      
-      for (cov in c("age_at_diagnosis", "gender", "stage_clean")) {
-        if (cov %in% names(matched)) {
-          if (cov == "age_at_diagnosis") {
-            model_data$age_at_diagnosis <- matched$age_at_diagnosis
-            final_covs <- c(final_covs, "age_at_diagnosis")
-          } else {
-            levs <- unique(na.omit(matched[[cov]]))
-            if (length(levs) >= 2) { 
-              model_data[[cov]] <- factor(matched[[cov]])
-              final_covs <- c(final_covs, cov) 
-            }
-          }
-        }
-      }
-      
-      if (length(final_covs) > length(intersect(final_covs, "TSS"))) {
-        keep_idx <- complete.cases(model_data[, final_covs, drop = FALSE])
-        if (sum(keep_idx) > 10) {
-          meth_m <- meth_m[, keep_idx, drop = FALSE]
-          met_beta <- met_beta[, keep_idx, drop = FALSE]
-          batch_vec <- batch_vec[keep_idx]
-          model_data <- model_data[keep_idx, , drop = FALSE]
-        }
+    # Load clinical data via the universal abstraction layer
+    clinical_std <- load_clinical_data(
+      file       = args[["clinical"]],
+      column_map = args[["clinical_map"]],
+      metadata   = metadata
+    )
+    
+    # Deduplicate and index by patient_id
+    clinical_std <- clinical_std[!duplicated(clinical_std$patient_id), ]
+    rownames(clinical_std) <- clinical_std$patient_id
+    
+    # Match clinical rows to methylation sample columns
+    matched <- clinical_std[colnames(meth_m), , drop = FALSE]
+    
+    # Age covariate
+    if ("age" %in% colnames(matched) && any(!is.na(matched$age))) {
+      model_data$age <- matched$age
+      final_covs <- c(final_covs, "age")
+    }
+    
+    # Gender covariate
+    if ("gender" %in% colnames(matched) && any(!is.na(matched$gender))) {
+      levs <- unique(na.omit(matched$gender))
+      if (length(levs) >= 2) {
+        model_data$gender <- factor(matched$gender)
+        final_covs <- c(final_covs, "gender")
       }
     }
-  }, error = function(e) meth_msg("Clinical data error: ", e$message, level="WARN"))
+    
+    # Stage covariate — read from original clinical file if available
+    clinical_raw <- read.delim(args[["clinical"]], stringsAsFactors = FALSE, check.names = FALSE)
+    stage_col <- NULL
+    # Check for stage column: custom mapping first, then common names
+    cmap <- parse_clinical_mapping(args[["clinical_map"]])
+    if (!is.null(cmap$stage)) {
+      stage_col <- cmap$stage
+    } else {
+      stage_candidates <- c("ajcc_pathologic_stage", "stage", "tumor_stage", "clinical_stage", "Stage")
+      stage_col <- intersect(colnames(clinical_raw), stage_candidates)[1]
+    }
+    if (!is.null(stage_col) && !is.na(stage_col) && stage_col %in% colnames(clinical_raw)) {
+      # Build stage vector aligned to clinical_std patient order
+      stage_raw <- clinical_raw[[stage_col]]
+      names(stage_raw) <- clinical_std$patient_id[seq_along(stage_raw)]
+      stage_matched <- stage_raw[match(colnames(meth_m), names(stage_raw))]
+      stage_clean <- meth_map_stage(stage_matched)
+      levs <- unique(na.omit(stage_clean))
+      if (length(levs) >= 2) {
+        model_data$stage_clean <- factor(stage_clean)
+        final_covs <- c(final_covs, "stage_clean")
+      }
+    }
+    
+    if (length(final_covs) > length(intersect(final_covs, "TSS"))) {
+      keep_idx <- complete.cases(model_data[, final_covs, drop = FALSE])
+      if (sum(keep_idx) > 10) {
+        meth_m <- meth_m[, keep_idx, drop = FALSE]
+        met_beta <- met_beta[, keep_idx, drop = FALSE]
+        batch_vec <- batch_vec[keep_idx]
+        model_data <- model_data[keep_idx, , drop = FALSE]
+      }
+    }
+    
+    meth_msg(sprintf("Clinical covariates loaded: %s", paste(final_covs, collapse = ", ")))
+  }, error = function(e) meth_msg(paste("Clinical data error:", e$message), level="WARN"))
 }
 
 # Remove single-level factors
@@ -497,11 +582,17 @@ generate_meth_validation_figures(
 # ==============================================================================
 meth_step(9, "Audit Trail & Final Export")
 
-sample_info <- data.frame(
-  patient_id       = colnames(meth_m),
-  batch            = as.character(batch_vec),
-  stringsAsFactors = FALSE
-)
+if (!is.null(metadata)) {
+  sample_info <- metadata[match(orig_barcodes[colnames(meth_m)], metadata$sample_id), ]
+} else {
+  sample_info <- data.frame(
+    sample_id        = orig_barcodes[colnames(meth_m)],
+    patient_id       = colnames(meth_m),
+    sample_class     = "primary_tumor",
+    batch            = as.character(batch_vec),
+    stringsAsFactors = FALSE
+  )
+}
 
 qc <- meth_update_qc(qc, "output_matrices", "mofa_probes", nrow(meth_m_top))
 qc <- meth_update_qc(qc, "output_matrices", "mofa_samples", ncol(meth_m_top))
@@ -516,7 +607,8 @@ export_meth_results(
   sample_info  = sample_info,
   qc_metrics   = qc,
   probe_log    = probe_log,
-  outdir       = args$outdir
+  outdir       = args$outdir,
+  metadata_supplied = !is.null(metadata)
 )
 
 # ==============================================================================

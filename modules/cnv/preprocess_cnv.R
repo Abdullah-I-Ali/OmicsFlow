@@ -40,6 +40,8 @@ option_list <- list(
               help = "Path to Ensembl gene coordinates cache (.rds) [default= %default]"),
   make_option(c("-o", "--outdir"), type = "character", default = "results/cnv/",
               help = "Output directory for CNV results [default= %default]"),
+  make_option(c("-m", "--metadata"), type = "character", default = NULL,
+              help = "Path to sample metadata CSV file (optional)"),
   make_option(c("-n", "--ntop"), type = "integer", default = 5000,
               help = "Number of top variable genes to retain [default= %default]")
 )
@@ -66,6 +68,7 @@ script_dir <- tryCatch(
 source(file.path(script_dir, "utils_cnv.R"))
 source(file.path(script_dir, "qc_cnv.R"))
 source(file.path(script_dir, "export_cnv.R"))
+source(file.path(dirname(script_dir), "utils_metadata.R"))
 
 # ------------------------------------------------------------------------------
 # INITIALISE
@@ -80,10 +83,15 @@ tryCatch({
   
   qc_metrics <- init_cnv_qc()
   
+  metadata <- load_metadata(opt$metadata)
+  
   cnv_banner("OmicsFlow v1.0.0 | CNV Preprocessing")
   cnv_msg(sprintf("Start time : %s", Sys.time()))
   cnv_msg(sprintf("Input      : %s", opt$input))
   cnv_msg(sprintf("Output dir : %s", opt$outdir))
+  if (!is.null(metadata)) {
+    cnv_msg(sprintf("Metadata   : %s (%d samples)", opt$metadata, nrow(metadata)))
+  }
   
   # ==============================================================================
   # 1. DATA LOADING & BARCODE PARSING
@@ -113,8 +121,15 @@ tryCatch({
     cnv_msg("No merged barcodes found")
   }
   
-  cnv_data$patient_id  <- substr(cnv_data$Sample, 1, 12)   # TCGA-XX-XXXX
-  cnv_data$sample_type <- substr(cnv_data$Sample, 14, 15)  # 01, 10, 11
+  if (!is.null(metadata)) {
+    cnv_data <- cnv_data[cnv_data$Sample %in% metadata$sample_id, , drop = FALSE]
+    if (nrow(cnv_data) == 0) {
+      stop("None of the raw CNV segments match the sample_id column in metadata.")
+    }
+  }
+  
+  cnv_data$patient_id  <- get_patient_id(cnv_data$Sample, metadata)
+  cnv_data$sample_type <- get_sample_class(cnv_data$Sample, metadata)
   
   n_patients <- length(unique(cnv_data$patient_id))
   n_samples  <- length(unique(cnv_data$Sample))
@@ -243,7 +258,11 @@ tryCatch({
   # ==============================================================================
   cnv_step(7, "Aggregation - Gene x Tumor Matrix (1:1)")
   
-  tumor_sample_ids <- unique(cnv_data$Sample[cnv_data$sample_type == "01"])
+  if (!is.null(metadata)) {
+    tumor_sample_ids <- unique(cnv_data$Sample)
+  } else {
+    tumor_sample_ids <- unique(cnv_data$Sample[cnv_data$sample_type == "01"])
+  }
   matched_data_tumor <- matched_data %>% filter(sample_id %in% tumor_sample_ids)
   
   tumor_samples_per_patient <- matched_data_tumor %>%
@@ -295,13 +314,17 @@ tryCatch({
   if (length(cols_with_semicolon) > 0) {
     cnv_matrix <- cnv_matrix[, -cols_with_semicolon, drop = FALSE]
   }
-  tumor_cols <- grep("-01", colnames(cnv_matrix))
-  if(length(tumor_cols) > 0) {
-    cnv_matrix <- cnv_matrix[, tumor_cols, drop = FALSE]
+  if (is.null(metadata)) {
+    tumor_cols <- grep("-01", colnames(cnv_matrix))
+    if(length(tumor_cols) > 0) {
+      cnv_matrix <- cnv_matrix[, tumor_cols, drop = FALSE]
+    }
+    # Standardize colnames to 12-char patient ID
+    colnames(cnv_matrix) <- substr(colnames(cnv_matrix), 1, 12)
+  } else {
+    # Map colnames to patient IDs from metadata
+    colnames(cnv_matrix) <- get_patient_id(colnames(cnv_matrix), metadata)
   }
-  
-  # Standardize colnames to 12-char patient ID
-  colnames(cnv_matrix) <- substr(colnames(cnv_matrix), 1, 12)
   cnv_msg(sprintf("Final tumor-only matrix: %d genes x %d samples", nrow(cnv_matrix), ncol(cnv_matrix)))
   
   rm(matched_data, matched_dt, matched_data_tumor, gene_sample_cnv, tumor_sample_ids, tumor_samples_per_patient, patients_with_multiple)
@@ -370,7 +393,18 @@ tryCatch({
     stringsAsFactors = FALSE
   )
   
-  export_cnv_results(cnv_final, gene_var_df, opt$outdir)
+  if (!is.null(metadata)) {
+    sample_info <- metadata[match(colnames(cnv_final), metadata$patient_id), ]
+  } else {
+    sample_info <- data.frame(
+      sample_id        = colnames(cnv_final),
+      patient_id       = colnames(cnv_final),
+      sample_class     = "primary_tumor",
+      batch            = "batch1",
+      stringsAsFactors = FALSE
+    )
+  }
+  export_cnv_results(cnv_final, gene_var_df, opt$outdir, sample_info)
   
   # ==============================================================================
   # 12. SAVE QC METRICS

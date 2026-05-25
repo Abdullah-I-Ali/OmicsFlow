@@ -22,6 +22,8 @@ process RUN_ML {
     path "output_ml/*",                           emit: all_outputs
 
     script:
+    def metadata_arg = params.metadata ? "--metadata ${params.metadata}" : ""
+    def clinical_map_arg = params.clinical_map ? "--clinical_map ${params.clinical_map}" : ""
     """
     Rscript ${projectDir}/modules/ml/run_ml.R \\
         --mofa            ${mofa_model} \\
@@ -30,6 +32,8 @@ process RUN_ML {
         --outdir          output_ml/ \\
         --mofa_prefilter  ${params.ml_mofa_prefilter} \\
         --final_features  ${params.ml_final_features} \\
-        --train_ratio     ${params.ml_train_ratio}
+        --train_ratio     ${params.ml_train_ratio} \\
+        ${metadata_arg} \\
+        ${clinical_map_arg}
     """
 }
