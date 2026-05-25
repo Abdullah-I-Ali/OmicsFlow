@@ -90,6 +90,18 @@ graph TD
 
 ---
 
+## Supported Cohorts
+
+OmicsFlow can process any cohort provided the required omics matrices, clinical data, and metadata mappings are supplied. Supported cohort types include:
+
+- TCGA
+- GDC-derived cohorts
+- ICGC-style cohorts
+- Local institutional cohorts
+- Custom metadata-driven cohorts
+
+---
+
 ## Installation & Prerequisites
 
 To run OmicsFlow, ensure the following core utilities are installed on your host system:
@@ -158,6 +170,24 @@ nextflow run main.nf \
 
 ---
 
+## Metadata Schema Example
+
+Provide a minimal example `sample_metadata.csv`:
+
+```csv
+sample_id,patient_id,sample_class,batch,center
+RNA_001,P001,Tumor,B1,SiteA
+RNA_002,P002,Tumor,B1,SiteA
+```
+
+- **sample_id**: unique molecular sample identifier
+- **patient_id**: patient identifier used for cross-omics matching
+- **sample_class**: user-defined sample grouping
+- **batch**: technical batch variable
+- **center**: optional collection center
+
+---
+
 ## Output Directory Structure
 
 Upon completion, all standardized results, plots, metadata, and HTML logs are populated in the specified output directory:
@@ -203,7 +233,7 @@ OmicsFlow v1.1.0 enforces strict computational reproducibility:
 
 ## Example Report Previews
 
-Example report screenshots will be added in a future release.
+Example report screenshots and interactive figures are available directly within the generated HTML report outputs.
 
 ---
 
