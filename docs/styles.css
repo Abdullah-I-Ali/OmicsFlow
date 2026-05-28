@@ -71,26 +71,30 @@ pre, code {
 }
 
 pre {
-  background-color: #1E293B !important; /* darker background */
+  background-color: #0D1117 !important; /* deep slate / charcoal */
+  border: 1px solid #30363D !important; /* subtle borders */
   border-radius: 8px !important; /* rounded corners */
   padding: 1.5rem !important; /* improved padding */
   overflow-x: auto; /* horizontal scrolling */
-  color: #F8FAFC !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  color: #E6EDF3 !important; /* soft white/light gray */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* soft shadows */
   margin-bottom: 2rem;
 }
 
 code {
-  font-size: 0.95rem; /* larger monospace font */
+  font-size: 1rem; /* larger monospace font */
+  line-height: 1.6; /* slightly wider spacing */
 }
 
 /* Inline Code */
 :not(pre) > code {
-  background-color: #EDF2F7;
-  color: #E53E3E;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
+  background-color: #E2E8F0; /* darken inline code background */
+  color: #1E293B; /* improve contrast */
+  border: 1px solid #CBD5E1; /* maintain clean scientific aesthetic */
+  padding: 0.2rem 0.5rem; /* add subtle padding */
+  border-radius: 6px;
   font-weight: 500;
+  font-size: 0.95em;
 }
 
 /* Tables */

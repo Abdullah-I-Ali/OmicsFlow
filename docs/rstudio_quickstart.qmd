@@ -8,6 +8,7 @@ format:
     toc-depth: 3
     theme: cosmo
     css: styles.css
+    highlight-style: github-dark
     code-copy: true
 ---
 
