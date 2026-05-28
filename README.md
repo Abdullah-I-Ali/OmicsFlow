@@ -85,30 +85,87 @@ graph TD
 
 ---
 
-## 4. Quick Start
+## 4. Quick Start (R Package API)
 
-Get a local demonstration workflow up and running instantly using the built-in realistic validation framework.
+**Purpose:** Default user onboarding workflow.
+
+The R package provides a highly usable abstraction layer to interact with the scientific pipeline directly from RStudio or any R environment. The core package is lightweight, keeping heavy analytical dependencies dynamically installed when requested.
+
+```r
+# Install the lightweight orchestration layer
+install.packages("remotes")
+remotes::install_github("Abdullah-I-Ali/OmicsFlow", ref = "feature/rstudio-usability")
+
+library(OmicsFlow)
+
+# Install required heavy scientific frameworks (MOFA2, XGBoost, clusterProfiler, etc.)
+install_omicsflow_dependencies()
+
+# 1. Generate metadata and clinical templates
+generate_metadata_templates(
+  rna = "data/mycohort/rna.rds",
+  meth = "data/mycohort/meth.rds",
+  output_dir = "results/templates"
+)
+
+# 2. (Optional) Review and edit the generated templates
+
+# 3. Validate input integrity
+validate_inputs(
+  rna = "data/mycohort/rna.rds",
+  meth = "data/mycohort/meth.rds",
+  metadata = "results/templates/sample_metadata.csv",
+  clinical = "results/templates/custom_clinical_template.tsv",
+  clinical_map = "results/templates/clinical_map.json"
+)
+
+# 4. Execute the full pipeline
+omicsflow(
+  rna = "data/mycohort/rna.rds",
+  meth = "data/mycohort/meth.rds",
+  metadata = "results/templates/sample_metadata.csv",
+  clinical = "results/templates/custom_clinical_template.tsv",
+  clinical_map = "results/templates/clinical_map.json",
+  outdir = "results/myrun"
+)
+```
+
+---
+
+## 5. HPC / Reproducibility (Nextflow)
+
+**Purpose:** High-Performance Computing (HPC) / scalability / reproducibility workflow.
+
+For massive parallelization across clusters or clouds, or strictly reproducible containerized execution, utilize the Nextflow CLI:
+
+1. Install [Docker Desktop](https://www.docker.com/) (enable WSL2 on Windows).
+2. Install [Nextflow](https://nextflow.io/) (>= 22.10.0).
+3. Install [Quarto](https://quarto.org/) and ensure it is accessible in your system `PATH`.
 
 ```bash
 # Clone the repository
 git clone https://github.com/Abdullah-I-Ali/OmicsFlow.git
 cd OmicsFlow
 
-# Run the realistic cohort generation, pipeline analysis, and reporting layer
-Rscript run_realistic_validation.R
-```
+# Pull or build execution containers
+docker build -t omicsflow:latest .
 
-### What This Generates:
-1. **Realistic Synthetic Cohort:** Simulates RNA, Methylation, CNV, and SNV matrices for 150–200 patients across 3 distinct biological subtypes (Proliferative, Stromal, and Immune).
-2. **Full Multi-Omics Pipeline Run:** Automates preprocessing, batch correction, MOFA+ factor extraction, machine learning survival forecasting, and pathway enrichment.
-3. **Interactive HTML Report:** Generates a publication-grade, self-contained interactive report located at:
-   ```text
-   reports/OmicsFlow_Report.html
-   ```
+# Run the pipeline
+nextflow run main.nf \
+  --rna data/mycohort/rna.rds \
+  --meth data/mycohort/meth.rds \
+  --cnv data/mycohort/cnv.rds \
+  --snv data/mycohort/snv.rds \
+  --metadata data/mycohort/sample_metadata.csv \
+  --clinical data/mycohort/custom_clinical.tsv \
+  --clinical_map data/mycohort/clinical_map.json \
+  --outdir results/myrun \
+  -profile docker
+```
 
 ---
 
-## 5. Required Input Files
+## 6. Required Input Files
 
 To run OmicsFlow on a custom cohort, compile the following input files:
 
@@ -124,7 +181,7 @@ To run OmicsFlow on a custom cohort, compile the following input files:
 
 ---
 
-## 6. Input Format Specifications
+## 7. Input Format Specifications
 
 Ensure input matrices align with these structural specifications:
 
@@ -148,7 +205,7 @@ Ensure input matrices align with these structural specifications:
 
 ---
 
-## 7. Metadata & Clinical Mapping Examples
+## 8. Metadata & Clinical Mapping Examples
 
 OmicsFlow uses an abstraction layer to decouple pipeline execution from sample-naming conventions. This allows you to process mismatched omics matrices without manual string slicing.
 
@@ -179,25 +236,6 @@ S_METH_002,P_002,Tumor,B1,Center_Beta
 
 ---
 
-## 8. Custom Cohort Execution Example
-
-Execute a custom run using standard R execution configs or Nextflow command-line arguments:
-
-```bash
-nextflow run main.nf \
-  --rna data/mycohort/rna.rds \
-  --meth data/mycohort/meth.rds \
-  --cnv data/mycohort/cnv.rds \
-  --snv data/mycohort/snv.rds \
-  --metadata data/mycohort/sample_metadata.csv \
-  --clinical data/mycohort/custom_clinical.tsv \
-  --clinical_map data/mycohort/clinical_map.json \
-  --outdir results/myrun \
-  -profile docker
-```
-
----
-
 ## 9. Expected Outputs
 
 Upon successful execution, all analytical outputs are systematically organized:
@@ -217,32 +255,9 @@ results/myrun/
 
 ---
 
-## 10. Installation & Setup
+## 10. Realistic Validation Framework
 
-OmicsFlow runs across multiple OS architectures with modern package version locks.
-
-### Windows (Recommended)
-We **strongly recommend** utilizing **WSL2 (Windows Subsystem for Linux)** combined with **Docker**.
-1. Set up WSL2 (e.g., Ubuntu distribution).
-2. Install [Docker Desktop](https://www.docker.com/) and enable WSL2 integration.
-3. Install the CLI [Quarto](https://quarto.org/) utility on your machine and ensure it is accessible in your system `PATH`.
-
-### Linux / macOS
-Ensure you have Nextflow (>= 22.10.0), Java (>= 11), and Docker (recommended) or Conda installed.
-```bash
-# Clone the repository
-git clone https://github.com/Abdullah-I-Ali/OmicsFlow.git
-cd OmicsFlow
-
-# Pull or build execution containers
-docker build -t omicsflow:latest .
-```
-
----
-
-## 11. Realistic Validation Framework
-
-The realistic validation framework operates as a ground-truth simulator to evaluate mathematical stability and recovery.
+The realistic validation framework operates as a ground-truth simulator to evaluate mathematical stability and recovery. You can run it via `Rscript run_realistic_validation.R`.
 
 ### The Biological Subtypes
 The synthetic engine constructs $150-200$ patients divided across three biologically inspired profiles:
@@ -252,7 +267,7 @@ The synthetic engine constructs $150-200$ patients divided across three biologic
 
 ---
 
-## 12. Runtime, Resource, & Scenario Specifications
+## 11. Runtime, Resource, & Scenario Specifications
 
 ### Resource Expectations
 - **Minimum:** 4 Cores, 8 GB RAM.
@@ -266,7 +281,7 @@ The synthetic engine constructs $150-200$ patients divided across three biologic
 
 ---
 
-## 13. Common Pitfalls & Troubleshooting
+## 12. Common Pitfalls & Troubleshooting
 
 - **Mismatched Sample IDs:** If the sample IDs in your `rna.rds` colnames do not precisely match the column entries in `sample_metadata.csv`, the preprocessing module will evaluate counts to `NULL` or drop the samples. Ensure case sensitivity and matching.
 - **Missing Clinical Mapping Keys:** If R fails with variable selection errors, check that `clinical_map.json` maps *all* required fields (`patient_id`, `os_time`, `os_event`) to valid clinical TSV column headers.
@@ -275,7 +290,7 @@ The synthetic engine constructs $150-200$ patients divided across three biologic
 
 ---
 
-## 14. Repository Structure
+## 13. Repository Structure
 
 ```text
 OmicsFlow/
@@ -292,7 +307,7 @@ OmicsFlow/
 
 ---
 
-## 15. Roadmap
+## 14. Roadmap
 
 - [ ] **Pan-Cancer Benchmarking:** High-throughput validation across classic TCGA datasets.
 - [ ] **Independent GEO Validation:** Support for microarrays and single-omics validation tests.
@@ -300,7 +315,7 @@ OmicsFlow/
 
 ---
 
-## 16. Citation & Authors
+## 15. Citation & Authors
 
 **OmicsFlow: A Modular Pipeline for Integrated Multi-Omics and Survival Forecasting**  
 **Author:** Abdullah Ibrahim Ali  

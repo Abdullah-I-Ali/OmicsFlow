@@ -32,13 +32,13 @@ suppressPackageStartupMessages(library(optparse))
 # COMMAND-LINE ARGUMENTS
 # ------------------------------------------------------------------------------
 option_list <- list(
-  make_option(c("--rna"), type = "character", default = "results/rna/rna_processed_matrix.rds",
+  make_option(c("--rna"), type = "character", default = NULL,
               help = "Path to RNA matrix (.rds)"),
-  make_option(c("--meth"), type = "character", default = "results/methylation/methylation_processed_matrix.rds",
+  make_option(c("--meth"), type = "character", default = NULL,
               help = "Path to Methylation matrix (.rds)"),
-  make_option(c("--cnv"), type = "character", default = "results/cnv/cnv_processed_matrix.rds",
+  make_option(c("--cnv"), type = "character", default = NULL,
               help = "Path to CNV matrix (.rds)"),
-  make_option(c("--snv"), type = "character", default = "results/snv/snv_processed_matrix.rds",
+  make_option(c("--snv"), type = "character", default = NULL,
               help = "Path to SNV matrix (.rds)"),
   make_option(c("-o", "--outdir"), type = "character", default = "results/integration/",
               help = "Output directory [default= %default]"),
@@ -108,45 +108,58 @@ tryCatch({
   # ==============================================================================
   int_step(1, "Loading Preprocessed Matrices")
   
-  rna  <- load_omics_matrix(opt$rna, "RNA", metadata)
-  int_msg(sprintf("RNA: %d genes x %d samples", nrow(rna), ncol(rna)))
-  qc_metrics <- add_int_qc(qc_metrics, "features", "RNA", nrow(rna))
+  mofa_data <- list()
   
-  meth <- load_omics_matrix(opt$meth, "Methylation", metadata)
-  int_msg(sprintf("Methylation: %d probes x %d samples", nrow(meth), ncol(meth)))
-  qc_metrics <- add_int_qc(qc_metrics, "features", "Methylation", nrow(meth))
+  if (!is.null(opt$rna) && opt$rna != "" && file.exists(opt$rna)) {
+    rna  <- load_omics_matrix(opt$rna, "RNA", metadata)
+    int_msg(sprintf("RNA: %d genes x %d samples", nrow(rna), ncol(rna)))
+    qc_metrics <- add_int_qc(qc_metrics, "features", "RNA", nrow(rna))
+    mofa_data$RNA <- rna
+  }
+  if (!is.null(opt$meth) && opt$meth != "" && file.exists(opt$meth)) {
+    meth <- load_omics_matrix(opt$meth, "Methylation", metadata)
+    int_msg(sprintf("Methylation: %d probes x %d samples", nrow(meth), ncol(meth)))
+    qc_metrics <- add_int_qc(qc_metrics, "features", "Methylation", nrow(meth))
+    mofa_data$Methylation <- meth
+  }
+  if (!is.null(opt$cnv) && opt$cnv != "" && file.exists(opt$cnv)) {
+    cnv  <- load_omics_matrix(opt$cnv, "CNV", metadata)
+    int_msg(sprintf("CNV: %d genes x %d samples", nrow(cnv), ncol(cnv)))
+    qc_metrics <- add_int_qc(qc_metrics, "features", "CNV", nrow(cnv))
+    mofa_data$CNV <- cnv
+  }
+  if (!is.null(opt$snv) && opt$snv != "" && file.exists(opt$snv)) {
+    snv  <- load_omics_matrix(opt$snv, "SNV", metadata)
+    int_msg(sprintf("SNV: %d genes x %d samples", nrow(snv), ncol(snv)))
+    qc_metrics <- add_int_qc(qc_metrics, "features", "SNV", nrow(snv))
+    mofa_data$SNV <- snv
+  }
   
-  cnv  <- load_omics_matrix(opt$cnv, "CNV", metadata)
-  int_msg(sprintf("CNV: %d genes x %d samples", nrow(cnv), ncol(cnv)))
-  qc_metrics <- add_int_qc(qc_metrics, "features", "CNV", nrow(cnv))
-  
-  snv  <- load_omics_matrix(opt$snv, "SNV", metadata)
-  int_msg(sprintf("SNV: %d genes x %d samples", nrow(snv), ncol(snv)))
-  qc_metrics <- add_int_qc(qc_metrics, "features", "SNV", nrow(snv))
+  if (length(mofa_data) < 2) {
+    stop("Multi-omics integration requires at least 2 views.")
+  }
   
   # ==============================================================================
   # 2. FIND COMMON PATIENTS
   # ==============================================================================
   int_step(2, "Identifying Common Patients")
   
-  common_patients <- Reduce(intersect, list(
-    colnames(meth),
-    colnames(cnv),
-    colnames(rna),
-    colnames(snv)
-  ))
+  common_patients <- Reduce(intersect, lapply(mofa_data, colnames))
   
-  int_msg(sprintf("Common patients across ALL 4 omics: %d", length(common_patients)))
+  int_msg(sprintf("Common patients across provided views: %d", length(common_patients)))
   qc_metrics <- add_int_qc(qc_metrics, "samples", "common_patients", length(common_patients))
   
   if (length(common_patients) < 50) {
-    int_msg("Less than 50 common patients \u2014 MOFA may underfit!", level = "WARN")
+    int_msg("Less than 50 common patients — MOFA may underfit!", level = "WARN")
   }
   
-  meth <- meth[, common_patients, drop = FALSE]
-  cnv  <- cnv[,  common_patients, drop = FALSE]
-  rna  <- rna[,  common_patients, drop = FALSE]
-  snv  <- snv[,  common_patients, drop = FALSE]
+  mofa_data <- lapply(mofa_data, function(x) x[, common_patients, drop = FALSE])
+  
+  # Expose individual variables if needed by other components
+  if ("RNA" %in% names(mofa_data)) rna <- mofa_data$RNA
+  if ("Methylation" %in% names(mofa_data)) meth <- mofa_data$Methylation
+  if ("CNV" %in% names(mofa_data)) cnv <- mofa_data$CNV
+  if ("SNV" %in% names(mofa_data)) snv <- mofa_data$SNV
   
   int_msg("All matrices subsetted to common patients", level = "DETAILS")
   
@@ -155,19 +168,17 @@ tryCatch({
   # ==============================================================================
   int_step(3, "Constructing MOFA Object")
   
-  mofa_data <- list(
-    RNA         = rna,
-    Methylation = meth,
-    CNV         = cnv,
-    SNV         = snv
-  )
-  
   mofa <- create_mofa(mofa_data)
   
   int_msg("MOFA object created")
-  int_msg(sprintf("Views: %d", length(mofa_data)), level = "DETAILS")
+  int_msg(sprintf("Views: %d (%s)", length(mofa_data), paste(names(mofa_data), collapse = ", ")), level = "DETAILS")
   int_msg(sprintf("Samples: %d", length(common_patients)), level = "DETAILS")
   int_msg(sprintf("Total features: %s", format(sum(sapply(mofa_data, nrow)), big.mark = ",")), level = "DETAILS")
+  
+  # Export views dimensions to QC metrics
+  for (vname in names(mofa_data)) {
+    qc_metrics <- add_int_qc(qc_metrics, "views", vname, nrow(mofa_data[[vname]]))
+  }
   
   # ==============================================================================
   # 4. CONFIGURE OPTIONS
@@ -180,14 +191,17 @@ tryCatch({
   
   model_opts <- get_default_model_options(mofa)
   model_opts$num_factors <- opt$factors
-  model_opts$likelihoods <- c(
+  
+  all_likelihoods <- c(
     RNA         = "gaussian",
     Methylation = "gaussian",
     CNV         = "gaussian",
     SNV         = "bernoulli"
   )
+  model_opts$likelihoods <- all_likelihoods[names(mofa_data)]
+  
   int_msg(sprintf("num_factors = %d", opt$factors))
-  int_msg("likelihoods: RNA/Meth/CNV = gaussian | SNV = bernoulli")
+  int_msg(sprintf("likelihoods: %s", paste(sprintf("%s = %s", names(model_opts$likelihoods), model_opts$likelihoods), collapse = " | ")))
   
   train_opts <- get_default_training_options(mofa)
   train_opts$maxiter <- opt$iter

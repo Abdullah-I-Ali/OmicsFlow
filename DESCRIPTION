@@ -1,0 +1,45 @@
+Package: OmicsFlow
+Type: Package
+Title: Multi-Omics Integration and Survival Analysis Framework
+Version: 2.0.0
+Authors@R: person("Abdullah Ibrahim", "Ali",
+    email = "abdullah@omicsflow.dev",
+    role = c("aut", "cre"))
+Description: A modular multi-omics analysis framework supporting RNA-seq,
+    DNA methylation, CNV, and SNV data. Provides automated metadata
+    abstraction, dynamic modality-aware validation, MOFA+ integration,
+    machine learning survival modeling, pathway enrichment, and
+    publication-quality HTML reporting. Designed for RStudio-first
+    workflows with flexible cohort support.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.3
+VignetteBuilder: knitr
+Depends:
+    R (>= 4.1.0)
+Imports:
+    jsonlite,
+    readr,
+    dplyr,
+    tibble,
+    tools,
+    utils
+Suggests:
+    remotes,
+    roxygen2,
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    quarto,
+    MOFA2,
+    clusterProfiler,
+    survminer,
+    xgboost,
+    randomForestSRC,
+    edgeR,
+    limma,
+    sva,
+    org.Hs.eg.db
+URL: https://github.com/Abdullah-I-Ali/OmicsFlow
+BugReports: https://github.com/Abdullah-I-Ali/OmicsFlow/issues

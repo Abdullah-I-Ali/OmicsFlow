@@ -77,7 +77,12 @@ include_figure <- function(module, basename, caption_what="", caption_why="", ca
 }
 
 # --- Helper: format numbers ---
-fmt <- function(x) format(x, big.mark = ",", scientific = FALSE)
+fmt <- function(x) {
+  if (is.null(x) || length(x) == 0 || (length(x) == 1 && is.na(x))) {
+    return("N/A")
+  }
+  format(x, big.mark = ",", scientific = FALSE)
+}
 
 # --- Helper: HTML metric cards ---
 metric_grid_open <- function() cat('<div class="metric-grid">\n')
@@ -149,23 +154,53 @@ if (length(qc_meth) > 0 && !is.null(qc_meth$probes$raw)) {
 <h2>`r paste('OmicsFlow', params$version, '— Multi-Omics Analysis Report')`</h2>
 <p><strong>`r params$subtitle`</strong> &nbsp;·&nbsp; Author: Abdullah Ibrahim Ali</p>
 <p>Generated: `r format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")`</p>
-<div class="of-cover-meta">
-Omics layers integrated: RNA-seq &nbsp;|&nbsp; DNA Methylation (`r meth_platform`) &nbsp;|&nbsp; Copy Number Variation &nbsp;|&nbsp; Somatic Mutations (SNV)<br>
-Pipeline: Preprocessing → MOFA+ Integration → Survival ML → Pathway Enrichment
-</div>
+```{r cover-metadata, results='asis'}
+layers <- c()
+if (length(qc_rna) > 0) layers <- c(layers, "RNA-seq")
+if (length(qc_meth) > 0) layers <- c(layers, paste0("DNA Methylation (", meth_platform, ")"))
+if (length(qc_cnv) > 0) layers <- c(layers, "Copy Number Variation")
+if (length(qc_snv) > 0) layers <- c(layers, "Somatic Mutations (SNV)")
+
+pipeline_steps <- c("Preprocessing")
+if (length(qc_int) > 0) pipeline_steps <- c(pipeline_steps, "MOFA+ Integration")
+if (length(qc_ml) > 0) pipeline_steps <- c(pipeline_steps, "Survival ML")
+if (length(qc_enr) > 0) pipeline_steps <- c(pipeline_steps, "Pathway Enrichment")
+
+cat('<div class="of-cover-meta">\n')
+cat('Omics layers integrated: ', paste(layers, collapse = " &nbsp;|&nbsp; "), '<br>\n', sep="")
+cat('Pipeline: ', paste(pipeline_steps, collapse = " → "), '\n', sep="")
+cat('</div>\n')
+```
 </div>
 
 ```{r overview-metrics, results='asis'}
+n_layers <- sum(c(length(qc_rna)>0, length(qc_meth)>0, length(qc_cnv)>0, length(qc_snv)>0))
+n_modules <- sum(c(length(qc_rna)>0, length(qc_meth)>0, length(qc_cnv)>0, length(qc_snv)>0, length(qc_int)>0, length(qc_ml)>0, length(qc_enr)>0))
+
+# Try to find a valid final patient count from the first active module
+final_patients <- NULL
+if (length(qc_rna) > 0 && !is.null(qc_rna$samples$final)) {
+  final_patients <- qc_rna$samples$final
+} else if (length(qc_meth) > 0 && !is.null(qc_meth$samples$final)) {
+  final_patients <- qc_meth$samples$final
+} else if (length(qc_cnv) > 0 && !is.null(qc_cnv$samples$final)) {
+  final_patients <- qc_cnv$samples$final
+} else if (length(qc_snv) > 0 && !is.null(qc_snv$samples$final)) {
+  final_patients <- qc_snv$samples$final
+}
+
 metric_grid_open()
 metric_card(paste("OmicsFlow", params$version), "Pipeline Version", "font-size:1.1rem")
 metric_card(format(Sys.time(), "%Y-%m-%d"), "Report Date")
-metric_card("4", "Omics Layers")
-metric_card("7", "Modules Executed")
-# Live sample count from methylation (most complete layer)
-if (length(qc_meth) > 0 && !is.null(qc_meth$samples$final))
-  metric_card(fmt(qc_meth$samples$final), "Final Patients")
-if (length(qc_meth) > 0 && !is.null(qc_meth$probes$after_na_filter))
+metric_card(as.character(n_layers), "Omics Layers")
+metric_card(as.character(n_modules), "Modules Executed")
+
+if (!is.null(final_patients)) {
+  metric_card(fmt(final_patients), "Final Patients")
+}
+if (length(qc_meth) > 0 && !is.null(qc_meth$probes$after_na_filter)) {
   metric_card(fmt(qc_meth$probes$after_na_filter), "Clean CpG Probes")
+}
 metric_grid_close()
 ```
 
@@ -176,8 +211,7 @@ This report automatically summarizes all outputs from the OmicsFlow multi-omics 
 ## Executive Summary
 
 ```{r exec-summary, results='asis'}
-cat('<div class="interp-block" style="font-size: 1.1em; line-height: 1.6;">
-')
+cat('<div class="interp-block" style="font-size: 1.1em; line-height: 1.6;">\n')
 
 # Features
 n_rna = if(length(qc_rna)>0 && !is.null(qc_rna$genes$final)) qc_rna$genes$final else 0
@@ -185,69 +219,79 @@ n_meth = if(length(qc_meth)>0 && !is.null(qc_meth$probes$after_na_filter)) qc_me
 n_cnv = if(length(qc_cnv)>0 && !is.null(qc_cnv$genes$final_genes)) qc_cnv$genes$final_genes else 0
 n_snv = if(length(qc_snv)>0 && !is.null(qc_snv$genes$final_genes)) qc_snv$genes$final_genes else 0
 
-cat('<strong>OmicsFlow ', params$version, '</strong> successfully processed and integrated multi-omics data for <strong>', fmt(qc_ml$samples$total_valid_patients), '</strong> ', sample_class_label, ' samples.
+# Try to find common patients count or standard final patient count
+n_patients <- "N/A"
+if (length(qc_ml) > 0 && !is.null(qc_ml$samples$total_valid_patients)) {
+  n_patients <- fmt(qc_ml$samples$total_valid_patients)
+} else if (length(qc_int) > 0 && !is.null(qc_int$samples$common_patients)) {
+  n_patients <- fmt(qc_int$samples$common_patients)
+} else if (!is.null(final_patients)) {
+  n_patients <- fmt(final_patients)
+}
 
-')
+cat('<strong>OmicsFlow ', params$version, '</strong> successfully processed multi-omics data for <strong>', n_patients, '</strong> ', sample_class_label, ' samples.\n\n')
 
-cat('<strong>Features Retained:</strong>
-')
-cat('<ul>
-')
-cat('<li><strong>RNA-seq:</strong> ', fmt(n_rna), ' genes</li>
-')
-cat('<li><strong>DNA Methylation:</strong> ', fmt(n_meth), ' probes</li>
-')
-cat('<li><strong>CNV:</strong> ', fmt(n_cnv), ' genes</li>
-')
-cat('<li><strong>SNV:</strong> ', fmt(n_snv), ' genes</li>
-')
-cat('</ul>
+cat('<strong>Features Retained:</strong>\n')
+cat('<ul>\n')
+if (length(qc_rna) > 0) cat('<li><strong>RNA-seq:</strong> ', fmt(n_rna), ' genes</li>\n')
+if (length(qc_meth) > 0) cat('<li><strong>DNA Methylation:</strong> ', fmt(n_meth), ' probes</li>\n')
+if (length(qc_cnv) > 0) cat('<li><strong>CNV:</strong> ', fmt(n_cnv), ' genes</li>\n')
+if (length(qc_snv) > 0) cat('<li><strong>SNV:</strong> ', fmt(n_snv), ' genes</li>\n')
+cat('</ul>\n\n')
 
-')
-
-cat('<strong>Integration & Biomarker Discovery:</strong> MOFA+ identified <strong>', fmt(qc_int$model$active_factors_count), '</strong> active latent factors representing shared biological processes.
-
-')
+if (length(qc_int) > 0) {
+  cat('<strong>Integration & Biomarker Discovery:</strong> MOFA+ identified <strong>', fmt(qc_int$model$active_factors_count), '</strong> active latent factors representing shared biological processes.\n\n')
+} else {
+  cat('<strong>Integration & Biomarker Discovery:</strong> Multi-omics integration was skipped.\n\n')
+}
 
 # Find best ML model
-ml_cindex <- c("Random Survival Forest" = qc_ml$performance$rf_c_index, "XGBoost" = qc_ml$performance$xgb_c_index, "LASSO" = qc_ml$performance$lasso_c_index)
 best_model <- "Unknown"
 best_c <- 0
-if (length(ml_cindex) > 0 && !is.null(ml_cindex[[1]])) {
-  best_model <- names(which.max(ml_cindex))
-  best_c <- max(ml_cindex)
+if (length(qc_ml) > 0) {
+  ml_cindex <- list()
+  if (!is.null(qc_ml$performance$rf_c_index)) ml_cindex[["Random Survival Forest"]] <- qc_ml$performance$rf_c_index
+  if (!is.null(qc_ml$performance$xgb_c_index)) ml_cindex[["XGBoost"]] <- qc_ml$performance$xgb_c_index
+  if (!is.null(qc_ml$performance$lasso_c_index)) ml_cindex[["LASSO"]] <- qc_ml$performance$lasso_c_index
+  
+  if (length(ml_cindex) > 0) {
+    best_model <- names(which.max(unlist(ml_cindex)))
+    best_c <- max(unlist(ml_cindex))
+    cat('<strong>Clinical Prediction:</strong> Survival analysis using ', best_model, ' achieved the highest predictive performance with a Concordance Index (C-index) of <strong>', sprintf("%.3f", best_c), '</strong>.\n\n')
+  } else {
+    cat('<strong>Clinical Prediction:</strong> Survival machine learning did not report C-index values.\n\n')
+  }
+} else {
+  cat('<strong>Clinical Prediction:</strong> Survival machine learning was skipped.\n\n')
 }
-cat('<strong>Clinical Prediction:</strong> Survival analysis using ', best_model, ' achieved the highest predictive performance with a Concordance Index (C-index) of <strong>', sprintf("%.3f", best_c), '</strong>.
 
-')
+if (length(qc_enr) > 0) {
+  bp_text   <- format_pathway_text(qc_enr$enrichment$go_bp_terms, "GO Biological Process terms")
+  mf_text   <- format_pathway_text(qc_enr$enrichment$go_mf_terms, "GO Molecular Function terms")
+  cc_text   <- format_pathway_text(qc_enr$enrichment$go_cc_terms, "GO Cellular Component terms")
+  kegg_text <- format_pathway_text(qc_enr$enrichment$kegg_pathways, "KEGG pathways")
+  cat('<strong>Biological Interpretation:</strong> ', bp_text, ' ', mf_text, ' ', cc_text, ' ', kegg_text, '\n\n')
+} else {
+  cat('<strong>Biological Interpretation:</strong> Pathway enrichment analysis was skipped.\n\n')
+}
 
-# Pathways
-bp_text   <- format_pathway_text(qc_enr$enrichment$go_bp_terms, "GO Biological Process terms")
-mf_text   <- format_pathway_text(qc_enr$enrichment$go_mf_terms, "GO Molecular Function terms")
-cc_text   <- format_pathway_text(qc_enr$enrichment$go_cc_terms, "GO Cellular Component terms")
-kegg_text <- format_pathway_text(qc_enr$enrichment$kegg_pathways, "KEGG pathways")
+cat('<strong>Key Findings:</strong>\n')
+cat('<ul>\n')
+if (length(qc_enr) > 0) {
+  cat('<li>ECM-related pathways are significantly enriched.</li>\n')
+}
+if (length(qc_snv) > 0) {
+  cat('<li>TP53 is among the most frequently altered genes.</li>\n')
+}
+if (length(qc_int) > 0) {
+  cat('<li>MOFA captured strong shared variation between biological layers.</li>\n')
+}
+if (length(qc_ml) > 0 && best_model != "Unknown") {
+  cat('<li>', best_model, ' achieved the highest predictive performance.</li>\n')
+}
+cat('</ul>\n')
 
-cat('<strong>Biological Interpretation:</strong> ', bp_text, ' ', mf_text, ' ', cc_text, ' ', kegg_text, '
-
-')
-
-cat('<strong>Key Findings:</strong>
-')
-cat('<ul>
-')
-cat('<li>ECM-related pathways are significantly enriched.</li>
-')
-cat('<li>TP53 is among the most frequently altered genes.</li>
-')
-cat('<li>MOFA captured strong shared variation between RNA and methylation layers.</li>
-')
-cat('<li>', best_model, ' achieved the highest predictive performance.</li>
-')
-cat('</ul>
-')
-
-cat('</div>
-')
+cat('</div>\n')
 ```
 
 ---
@@ -682,21 +726,40 @@ if (file.exists(bp_csv)) {
 cat('<div class="interp-block" style="font-size: 1.1em; line-height: 1.6;">\n')
 
 cat('<h3>Summary of Multi-Omics Analysis</h3>\n')
-cat('<p>This comprehensive multi-omics analysis of <strong>', fmt(qc_ml$samples$total_valid_patients), '</strong> ', sample_class_label, ' samples successfully integrated transcriptomic, epigenomic, copy number, and mutational landscapes to decode the molecular drivers of patient survival.</p>\n')
+n_patients_concl <- "N/A"
+if (length(qc_ml) > 0 && !is.null(qc_ml$samples$total_valid_patients)) {
+  n_patients_concl <- fmt(qc_ml$samples$total_valid_patients)
+} else if (length(qc_int) > 0 && !is.null(qc_int$samples$common_patients)) {
+  n_patients_concl <- fmt(qc_int$samples$common_patients)
+} else if (!is.null(final_patients)) {
+  n_patients_concl <- fmt(final_patients)
+}
+
+cat('<p>This comprehensive multi-omics analysis of <strong>', n_patients_concl, '</strong> ', sample_class_label, ' samples successfully integrated available datasets to decode the molecular drivers of patient survival.</p>\n')
 
 cat('<ul>\n')
-cat('<li><strong>Most Important MOFA Factor:</strong> Factor 1 captured the largest fraction of shared variance across the RNA-seq and DNA Methylation views, suggesting a powerful epigenetically-driven transcriptomic program.</li>\n')
-cat('<li><strong>Top Biomarkers:</strong> The machine learning pipeline isolated a compact signature of ', fmt(qc_ml$features$final_features_count), ' highly prognostic molecular features.</li>\n')
-cat('<li><strong>Best Predictive Model:</strong> The ', best_model, ' algorithm achieved the highest validation accuracy (C-index: ', sprintf("%.3f", best_c), '), demonstrating robust clinical stratification of high- vs. low-risk patient cohorts.</li>\n')
-cat('<li><strong>Top Biological Pathways:</strong> Functional enrichment of prognostic features highlighted significant over-representation of ', 
-    format_pathway_inline(qc_enr$enrichment$go_bp_terms, "GO Biological Processes"), ', ',
-    format_pathway_inline(qc_enr$enrichment$go_mf_terms, "GO Molecular Functions"), ', ',
-    format_pathway_inline(qc_enr$enrichment$go_cc_terms, "GO Cellular Components"), ', and ',
-    format_pathway_inline(qc_enr$enrichment$kegg_pathways, "KEGG Pathways"), '.</li>\n', sep = "")
+if (length(qc_int) > 0) {
+  cat('<li><strong>Most Important MOFA Factor:</strong> Factor 1 captured the largest fraction of shared variance across integrated views, suggesting a powerful multi-omics signature.</li>\n')
+}
+if (length(qc_ml) > 0) {
+  cat('<li><strong>Top Biomarkers:</strong> The machine learning pipeline isolated a compact signature of ', fmt(qc_ml$features$final_features_count), ' highly prognostic molecular features.</li>\n')
+  if (best_model != "Unknown") {
+    cat('<li><strong>Best Predictive Model:</strong> The ', best_model, ' algorithm achieved the highest validation accuracy (C-index: ', sprintf("%.3f", best_c), '), demonstrating robust clinical stratification of high- vs. low-risk patient cohorts.</li>\n')
+  }
+}
+if (length(qc_enr) > 0) {
+  cat('<li><strong>Top Biological Pathways:</strong> Functional enrichment of prognostic features highlighted significant over-representation of ', 
+      format_pathway_inline(qc_enr$enrichment$go_bp_terms, "GO Biological Processes"), ', ',
+      format_pathway_inline(qc_enr$enrichment$go_mf_terms, "GO Molecular Functions"), ', ',
+      format_pathway_inline(qc_enr$enrichment$go_cc_terms, "GO Cellular Components"), ', and ',
+      format_pathway_inline(qc_enr$enrichment$kegg_pathways, "KEGG Pathways"), '.</li>\n', sep = "")
+}
 cat('</ul>\n')
 
-cat('<h3>Main Biological Hypothesis</h3>\n')
-cat('<p>The integrated findings strongly support a hypothesis centered on extracellular matrix remodeling and the tumor microenvironment. Epigenetic alterations captured by MOFA+ closely govern the transcriptomic state of these microenvironmental pathways, which ultimately manifest as the primary determinants of clinical outcome and patient survival. This signature provides a robust foundation for future biomarker-driven therapeutic targeting.</p>\n')
+if (length(qc_int) > 0 || length(qc_ml) > 0) {
+  cat('<h3>Main Biological Hypothesis</h3>\n')
+  cat('<p>The integrated findings support a hypothesis centered on biological pathways driving patient survival. Epigenetic or transcriptomic alterations captured by the pipeline govern the state of these biological pathways, which ultimately manifest as the primary determinants of clinical outcome and patient survival.</p>\n')
+}
 
 cat('</div>\n')
 ```

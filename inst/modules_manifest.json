@@ -1,0 +1,25 @@
+{
+  "package": "OmicsFlow",
+  "version": "2.0.0",
+  "required_directories": [
+    "modules/rna",
+    "modules/methylation",
+    "modules/cnv",
+    "modules/snv",
+    "modules/integration",
+    "modules/ml",
+    "modules/enrichment",
+    "reports"
+  ],
+  "required_files": [
+    "modules/rna/preprocess_rna.R",
+    "modules/methylation/preprocess_meth.R",
+    "modules/cnv/preprocess_cnv.R",
+    "modules/snv/preprocess_snv.R",
+    "modules/integration/run_integration.R",
+    "modules/ml/run_ml.R",
+    "modules/enrichment/run_enrichment.R",
+    "modules/utils_metadata.R",
+    "reports/OmicsFlow_Report.qmd"
+  ]
+}

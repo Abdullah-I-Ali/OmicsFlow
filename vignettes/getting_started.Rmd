@@ -1,0 +1,101 @@
+---
+title: "Getting Started with OmicsFlow"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with OmicsFlow}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Introduction
+
+OmicsFlow provides a robust orchestration layer for multi-omics preprocessing, latent feature extraction via MOFA+, and downstream clinical survival forecasting. This vignette outlines the standard user workflow for setting up and executing the pipeline using the R package API.
+
+## 1. Installation
+
+Install the lightweight package core directly from GitHub:
+
+```{r eval=FALSE}
+# Install the core orchestration wrapper
+remotes::install_github("Abdullah-I-Ali/OmicsFlow")
+library(OmicsFlow)
+```
+
+Because OmicsFlow orchestrates heavy analytical pipelines (e.g., `MOFA2`, `clusterProfiler`, `xgboost`), we supply a helper function to install the complete scientific stack automatically:
+
+```{r eval=FALSE}
+# Installs heavy CRAN and Bioconductor dependencies into the environment
+install_omicsflow_dependencies()
+```
+
+## 2. Metadata Generation
+
+OmicsFlow uses an abstraction layer to decouple pipeline execution from sample-naming conventions. Before running the pipeline, generate the required metadata templates:
+
+```{r eval=FALSE}
+# Provide the omics matrices you possess (any subset is allowed)
+res_templates <- generate_metadata_templates(
+  rna = "path/to/rna.rds",
+  meth = "path/to/meth.rds",
+  output_dir = "results/templates"
+)
+```
+
+This generates `sample_metadata.csv` and `custom_clinical_template.tsv`. You should edit these files to map your samples to their clinical attributes before proceeding.
+
+## 3. Validation
+
+Before kicking off a long multi-omics run, OmicsFlow provides a pre-flight validation checker. This ensures files exist, required schema variables match, and matrix sample IDs perfectly align with the metadata.
+
+```{r eval=FALSE}
+res_val <- validate_inputs(
+  rna = "path/to/rna.rds",
+  meth = "path/to/meth.rds",
+  metadata = "results/templates/sample_metadata.csv",
+  clinical = "results/templates/custom_clinical_template.tsv",
+  clinical_map = "results/templates/clinical_map.json"
+)
+
+# Returns a structured object
+print(res_val$status)
+print(res_val$valid)
+```
+
+## 4. Subset Execution
+
+OmicsFlow dynamically supports any combination of RNA, Methylation, CNV, and SNV (minimum 2 modalities required for MOFA+ integration). To run the pipeline on a subset (e.g., RNA and Methylation):
+
+```{r eval=FALSE}
+res_flow <- omicsflow(
+  rna = "path/to/rna.rds",
+  meth = "path/to/meth.rds",
+  metadata = "results/templates/sample_metadata.csv",
+  clinical = "results/templates/custom_clinical_template.tsv",
+  clinical_map = "results/templates/clinical_map.json",
+  outdir = "results/my_analysis",
+  mofa_iter = 1000,
+  render_report = TRUE
+)
+
+# Inspect the structured return object
+print(res_flow$status)
+print(res_flow$executed_modalities)
+```
+
+## 5. Report Generation
+
+If `render_report = TRUE` is specified, OmicsFlow will automatically compile a Quarto-driven HTML dashboard upon completion. This report includes:
+
+- Interactive PCA plots
+- MOFA+ Latent Factor visualizations
+- Machine Learning Survival curves (Kaplan-Meier)
+- Pathway Enrichment maps
+
+You can locate the final report in the defined output directory under `reports/OmicsFlow_Report.html`.

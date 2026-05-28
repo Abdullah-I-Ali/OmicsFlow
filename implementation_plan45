@@ -1,0 +1,118 @@
+# Phase 2.2 — Stabilization & Release Readiness
+
+Prepare the `feature/rstudio-usability` branch for a `v2.0.0-beta` release by hardening the R package API, introducing Continuous Integration, and polishing user-facing documentation.
+
+## Proposed Changes
+
+### 1. Structured Return Objects
+
+We will modify the core exported API functions to return comprehensive, structured list objects to support programmatic evaluation downstream, while preserving the existing console logs.
+
+#### [MODIFY] [omicsflow.R](file:///h:/omicsflow_test/R/omicsflow.R)
+Change return from `invisible(status)` to:
+```r
+invisible(list(
+  status = if (isTRUE(status$INTEGRATION)) "success" else "partial/failed",
+  report_path = if (render_report && isTRUE(status$INTEGRATION)) normalizePath(file.path(outdir, "reports", "OmicsFlow_Report.html"), mustWork = FALSE) else NULL,
+  output_dirs = dirs,
+  executed_modalities = names(status)[status == TRUE],
+  skipped_modalities = names(status)[status == FALSE],
+  warnings = warnings_list,
+  runtime = difftime(Sys.time(), start_time, units = "secs")
+))
+```
+
+#### [MODIFY] [validate_inputs.R](file:///h:/omicsflow_test/R/validate_inputs.R)
+Change return to:
+```r
+list(
+  status = if (valid) "success" else "failed",
+  valid = valid,
+  detected_modalities = provided_modalities_list,
+  skipped_modalities = skipped_modalities_list,
+  messages = messages,
+  warnings = warnings_list
+)
+```
+
+#### [MODIFY] [generate_metadata_templates.R](file:///h:/omicsflow_test/R/generate_metadata_templates.R)
+Change return to:
+```r
+invisible(list(
+  status = "success",
+  output_dir = normalizePath(output_dir, mustWork = FALSE),
+  templates_generated = list(
+    metadata = metadata_path,
+    clinical = clinical_template_path,
+    clinical_map = clinical_map_path,
+    validation = validation_path
+  ),
+  warnings = warnings_list
+))
+```
+
+---
+
+### 2. GitHub Actions CI Workflow
+
+#### [NEW] [.github/workflows/r-check.yml](file:///h:/omicsflow_test/.github/workflows/r-check.yml)
+A lightweight CI pipeline that will trigger on pushes and pull requests to `main` and `feature/*` branches.
+- Uses `r-lib/actions/setup-r` and `setup-r-dependencies`.
+- Installs the package via `remotes::install_local()`.
+- Runs a smoke test script:
+  - `library(OmicsFlow)`
+  - `generate_metadata_templates(rna = "data/synthetic/rna.rds")`
+  - `validate_inputs(rna = "data/...", meth = "data/...")`
+  - Verifies exported API structure using `stopifnot()`.
+  
+*Note: No MOFA+ or heavy ML execution in CI to maintain fast runner times and lightweight test stability.*
+
+---
+
+### 3. Documentation Refinements
+
+#### [MODIFY] [README.md](file:///h:/omicsflow_test/README.md)
+- Move the RStudio package workflow to **Section 4 (Quick Start)** at the very top.
+- Demote the Nextflow HPC execution to a later section (Section 8).
+- Ensure the workflow shows:
+  ```r
+  install.packages("remotes")
+  remotes::install_github("Abdullah-I-Ali/OmicsFlow", ref = "feature/rstudio-usability")
+  library(OmicsFlow)
+  install_omicsflow_dependencies()
+  generate_metadata_templates(...)
+  validate_inputs(...)
+  omicsflow(...)
+  ```
+
+#### [MODIFY] [DESCRIPTION](file:///h:/omicsflow_test/DESCRIPTION)
+- Update `Suggests` to include `knitr` and `rmarkdown` to support vignette building.
+- Add `VignetteBuilder: knitr`.
+
+---
+
+### 4. Vignette Skeleton
+
+#### [NEW] [vignettes/getting_started.Rmd](file:///h:/omicsflow_test/vignettes/getting_started.Rmd)
+An R Markdown vignette skeleton establishing the package documentation structure:
+- **Installation** (CRAN/GitHub + Dependencies)
+- **Metadata Generation** (Dynamic modality inference)
+- **Validation** (Pre-flight checks)
+- **Subset Execution** (Executing `omicsflow()` with partial omics)
+- **Report Generation** (Accessing the Quarto HTML)
+
+---
+
+## Verification Plan
+
+### Automated Verification
+1. Run `roxygen2::roxygenise()` to update `.Rd` documentation for the modified returns.
+2. Build the vignette locally using `devtools::build_vignettes()` or manual `knitr::knit()`.
+3. Validate the smoke test logic locally to ensure GitHub Actions will pass.
+
+### Manual Verification
+Execute a clean-user simulation:
+1. Reload R Session.
+2. `remotes::install_local("h:/omicsflow_test", force = TRUE)`
+3. Check `?omicsflow` to verify updated return documentation.
+4. Run `res <- omicsflow(...)` and print the returned `res` object to confirm the structured output is correct and visually parsable.

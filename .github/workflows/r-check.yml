@@ -1,0 +1,74 @@
+name: R-CMD-check and Smoke Tests
+
+on:
+  push:
+    branches: [main, master, "feature/*"]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck, any::remotes
+          needs: check
+
+      - name: Install Package
+        run: |
+          Rscript -e 'remotes::install_local(".", force = TRUE)'
+
+      - name: Assert Exported API and Hidden Utilities
+        run: |
+          Rscript -e '
+            library(OmicsFlow)
+            pkg_exports <- ls("package:OmicsFlow")
+            cat("Exported functions:", paste(pkg_exports, collapse = ", "), "\n")
+            stopifnot("omicsflow" %in% pkg_exports)
+            stopifnot("validate_inputs" %in% pkg_exports)
+            stopifnot("generate_metadata_templates" %in% pkg_exports)
+            stopifnot("set_omicsflow_root" %in% pkg_exports)
+            stopifnot("install_omicsflow_dependencies" %in% pkg_exports)
+            stopifnot(!"detect_sample_ids" %in% pkg_exports)
+            stopifnot(!"infer_patient_ids" %in% pkg_exports)
+            stopifnot(!"read_matrix_safe" %in% pkg_exports)
+            cat("Namespace API integrity verified.\n")
+          '
+
+      - name: Lightweight API Smoke Test
+        run: |
+          Rscript -e '
+            library(OmicsFlow)
+            set_omicsflow_root(".")
+            
+            cat("Testing generate_metadata_templates()...\n")
+            res_temp <- generate_metadata_templates(
+              rna = "data/realistic_cohort/rna.rds",
+              output_dir = "results/ci_test_templates"
+            )
+            stopifnot(inherits(res_temp, "omicsflow_templates"))
+            stopifnot(res_temp$status == "success")
+            
+            cat("Testing validate_inputs()...\n")
+            res_val <- validate_inputs(
+              rna = "data/realistic_cohort/rna.rds",
+              meth = "data/realistic_cohort/meth.rds",
+              metadata = res_temp$templates_generated$metadata
+            )
+            stopifnot(inherits(res_val, "omicsflow_validation"))
+            # Expect success or at least graceful failure since fake clinical is not provided
+            
+            cat("Lightweight API smoke test completed.\n")
+          '

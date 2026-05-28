@@ -1,0 +1,189 @@
+# Phase 2 — OmicsFlow Internal R Package Architecture
+
+Convert the usability/orchestration layer in `R/` into a proper installable R package while preserving the validated scientific module architecture.
+
+## Design Decisions
+
+### Packaging strategy: in-place overlay
+
+Rather than creating a separate subdirectory (`OmicsFlow/`), we packageize the repository root itself. This is the standard pattern for GitHub-installable R packages (e.g. `remotes::install_github("user/repo")`). The root already contains the `R/` directory with all usability functions.
+
+> [!IMPORTANT]
+> The scientific modules (`modules/`, `reports/`, `data/`, etc.) are **not** part of the R package source. They remain as repository-level assets referenced by the orchestration layer at runtime. This keeps the package lightweight and avoids bundling large analysis scripts or data.
+
+### What the package contains vs. what it orchestrates
+
+| Layer | In the R package | Accessed at runtime |
+|-------|-----------------|-------------------|
+| User API | `omicsflow()`, `validate_inputs()`, `generate_metadata_templates()` | — |
+| Internal helpers | `detect_sample_ids()`, `infer_patient_ids()`, etc. | — |
+| Console formatters | `msg_ok()`, `msg_warn()`, etc. | — |
+| Scientific modules | — | `modules/rna/`, `modules/methylation/`, etc. via `system()` |
+| Quarto reports | — | `reports/OmicsFlow_Report.qmd` via `quarto render` |
+| Metadata schema | — | `modules/utils_metadata.R` via `source()` |
+
+---
+
+## Proposed Changes
+
+### Package Skeleton
+
+#### [NEW] [DESCRIPTION](file:///h:/omicsflow_test/DESCRIPTION)
+
+Standard R package metadata. Key choices:
+- `Depends: R (>= 4.1.0)` — minimum R version for pipe support and modern features
+- `Imports: jsonlite, tools` — only packages directly called by the usability layer
+- `Suggests: remotes, roxygen2, testthat, quarto` — development/testing/rendering tools
+- `License: MIT + file LICENSE` — matches existing `LICENSE` file
+- `Version: 2.0.0` — reflects the packageization milestone
+- `RoxygenNote` set to enable `roxygen2::roxygenise()` for NAMESPACE/man generation
+
+#### [NEW] [NAMESPACE](file:///h:/omicsflow_test/NAMESPACE)
+
+Hand-written (roxygen2-compatible format):
+- **Exports:** `omicsflow`, `validate_inputs`, `generate_metadata_templates`
+- **Imports:** `jsonlite::fromJSON`, `jsonlite::write_json`, `tools::file_ext`
+
+All helper functions remain internal (not exported).
+
+#### [NEW] [OmicsFlow.Rproj](file:///h:/omicsflow_test/OmicsFlow.Rproj)
+
+Standard RStudio project file with `BuildType: Package` and roxygen2 settings.
+
+#### [NEW] [man/](file:///h:/omicsflow_test/man/) (directory)
+
+Empty directory to hold generated `.Rd` documentation files. Will be populated by `roxygen2::roxygenise()`.
+
+#### [NEW] [inst/](file:///h:/omicsflow_test/inst/) (directory)
+
+Package installation assets. We place a `inst/modules_manifest.json` file listing the expected module paths so the package can validate at runtime that the scientific modules are available.
+
+---
+
+### R Source Modifications
+
+All 8 files in `R/` need roxygen2 `@keywords internal` / `@export` annotations. No logic changes — only documentation headers.
+
+#### [MODIFY] [utils_io.R](file:///h:/omicsflow_test/R/utils_io.R)
+
+- Add `@keywords internal` to all functions (not exported)
+- No logic changes
+
+#### [MODIFY] [detect_sample_ids.R](file:///h:/omicsflow_test/R/detect_sample_ids.R)
+
+- Add `@keywords internal` (not exported)
+- No logic changes
+
+#### [MODIFY] [infer_patient_ids.R](file:///h:/omicsflow_test/R/infer_patient_ids.R)
+
+- Add `@keywords internal` (not exported)
+- No logic changes
+
+#### [MODIFY] [detect_clinical_columns.R](file:///h:/omicsflow_test/R/detect_clinical_columns.R)
+
+- Add `@keywords internal` (not exported)
+- No logic changes
+
+#### [MODIFY] [build_metadata_table.R](file:///h:/omicsflow_test/R/build_metadata_table.R)
+
+- Add `@keywords internal` (not exported)
+- No logic changes
+
+#### [MODIFY] [generate_metadata_templates.R](file:///h:/omicsflow_test/R/generate_metadata_templates.R)
+
+- Add `@export` tag
+- Expand roxygen2 block with full parameter docs and `@return`
+- No logic changes
+
+#### [MODIFY] [validate_inputs.R](file:///h:/omicsflow_test/R/validate_inputs.R)
+
+- Add `@export` tag
+- Expand roxygen2 block with full parameter docs and `@return`
+- **Logic change:** Replace `source("modules/utils_metadata.R")` with `omicsflow_project_root()` resolution so the package can locate the file from any working directory when installed
+
+#### [MODIFY] [omicsflow.R](file:///h:/omicsflow_test/R/omicsflow.R)
+
+- Add `@export` tag
+- Expand roxygen2 block with full parameter docs and `@return`
+- **Logic change:** Add `omicsflow_project_root()` helper to resolve the project root directory (where `modules/`, `reports/`, etc. live). Commands currently use relative paths like `Rscript modules/rna/...` — these must be made absolute using the resolved root.
+
+#### [NEW] [R/zzz.R](file:///h:/omicsflow_test/R/zzz.R)
+
+Package load hook:
+- `.onLoad()` — set package-level option `omicsflow.root` to `NULL` (lazy)
+- `.onAttach()` — print startup message with version
+
+#### [NEW] [R/project_root.R](file:///h:/omicsflow_test/R/project_root.R)
+
+Internal helper to locate the OmicsFlow project root:
+- `omicsflow_project_root()` — returns cached or auto-detected project root
+- `set_omicsflow_root(path)` — exported setter for users to explicitly configure the project root
+- Auto-detection strategy: walk up from `getwd()` looking for `modules/` + `reports/` + `R/` signature
+
+---
+
+### Documentation
+
+#### [MODIFY] [README.md](file:///h:/omicsflow_test/README.md)
+
+Add a new "Package Installation" section with:
+- `remotes::install_github()` instructions
+- `library(OmicsFlow)` workflow
+- Updated Quick Start showing package-based API
+
+---
+
+## Open Questions
+
+> [!IMPORTANT]
+> **Project root resolution:** When the package is installed via `install_github`, the user's working directory may not be the repo root. The orchestration layer calls `system("Rscript modules/rna/...")` using relative paths. We need a strategy to resolve the project root. The proposed approach is:
+> 1. Auto-detect by walking up from `getwd()` looking for the `modules/` directory
+> 2. Allow explicit override via `set_omicsflow_root("path/to/OmicsFlow")`
+> 3. Fall back to `getwd()` if detection fails
+>
+> **Does this approach work for your expected usage pattern?** (i.e., users will typically `setwd()` to the repo clone before running the pipeline)
+
+> [!NOTE]
+> **`modules/utils_metadata.R` dependency:** `validate_inputs()` currently `source()`s this file at runtime. In the packageized version, we'll resolve its path via `omicsflow_project_root()` rather than assuming it's relative to `getwd()`. The functions in `utils_metadata.R` are NOT moved into the package — they remain as shared scientific module utilities.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+```r
+# 1. Install the package
+remotes::install_local("h:/omicsflow_test", force = TRUE)
+
+# 2. Load and verify exports
+library(OmicsFlow)
+stopifnot("omicsflow" %in% ls("package:OmicsFlow"))
+stopifnot("validate_inputs" %in% ls("package:OmicsFlow"))
+stopifnot("generate_metadata_templates" %in% ls("package:OmicsFlow"))
+
+# 3. Verify internal functions are NOT exported
+stopifnot(!"detect_sample_ids" %in% ls("package:OmicsFlow"))
+stopifnot(!"msg_ok" %in% ls("package:OmicsFlow"))
+
+# 4. Verify template generation works
+set_omicsflow_root("h:/omicsflow_test")
+generate_metadata_templates(rna = "data/realistic_cohort/rna.rds", output_dir = "results/pkg_test")
+
+# 5. Verify subset execution works (RNA + Meth)
+omicsflow(
+  rna = "data/realistic_cohort/rna.rds",
+  meth = "data/realistic_cohort/meth.rds",
+  metadata = "data/realistic_cohort/sample_metadata.csv",
+  clinical = "data/realistic_cohort/custom_clinical.tsv",
+  clinical_map = "data/realistic_cohort/clinical_map.json",
+  outdir = "results/pkg_run",
+  mofa_iter = 20,
+  render_report = FALSE
+)
+```
+
+### Manual Verification
+- Confirm `?omicsflow` shows help page
+- Confirm `?validate_inputs` shows help page
+- Confirm package passes `R CMD check --no-vignettes --no-manual`

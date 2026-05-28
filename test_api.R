@@ -1,0 +1,22 @@
+library(OmicsFlow)
+pkg_exports <- ls("package:OmicsFlow")
+stopifnot("omicsflow" %in% pkg_exports)
+stopifnot(!"detect_sample_ids" %in% pkg_exports)
+
+cat("--- Testing generate_metadata_templates ---\n")
+res_temp <- generate_metadata_templates(rna = "h:/omicsflow_test/data/realistic_cohort/rna.rds", output_dir = "h:/omicsflow_test/results/ci_test_templates")
+print(class(res_temp))
+print(names(res_temp))
+
+cat("--- Testing validate_inputs ---\n")
+res_val <- validate_inputs(rna = "h:/omicsflow_test/data/realistic_cohort/rna.rds", metadata = res_temp$templates_generated$metadata)
+print(class(res_val))
+print(names(res_val))
+
+cat("--- Testing omicsflow ---\n")
+set_omicsflow_root("h:/omicsflow_test")
+res_flow <- omicsflow(rna = "h:/omicsflow_test/data/realistic_cohort/rna.rds", meth = "h:/omicsflow_test/data/realistic_cohort/meth.rds", metadata = res_temp$templates_generated$metadata, outdir = "h:/omicsflow_test/results/ci_test_run", mofa_iter = 2, render_report = FALSE)
+print(class(res_flow))
+print(names(res_flow))
+print(res_flow$status)
+print(res_flow$executed_modalities)
