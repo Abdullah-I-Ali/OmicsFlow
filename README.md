@@ -93,7 +93,7 @@ graph TD
 
 Click here to open the fully interactive, browser-based HTML onboarding guide:
 
-[Open RStudio Quickstart]([docs/rstudio_quickstart.html](https://abdullah-i-ali.github.io/OmicsFlow/rstudio_quickstart.html))
+[Open RStudio Quickstart]([docs/rstudio_quickstart.html](https://abdullah-i-ali.github.io/OmicsFlow/docs/rstudio_quickstart.html))
 
 ---
 
