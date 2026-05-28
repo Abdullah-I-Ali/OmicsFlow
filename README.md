@@ -91,11 +91,12 @@ graph TD
 
 ### Interactive Onboarding Guide
 
-Click here to open the fully interactive, browser-based HTML onboarding guide:
+Click below to open the fully interactive, browser-based HTML onboarding guide:
 
-[Open RStudio Quickstart]([docs/rstudio_quickstart.html]([https://abdullah-i-ali.github.io/OmicsFlow/rstudio_quickstart.html](https://abdullah-i-ali.github.io/OmicsFlow/rstudio_quickstart.html)))
+[Open RStudio Quickstart](https://abdullah-i-ali.github.io/OmicsFlow/rstudio_quickstart.html)
 
 ---
+
 
 ### Command Reference
 
