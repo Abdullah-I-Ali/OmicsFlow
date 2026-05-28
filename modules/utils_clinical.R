@@ -71,6 +71,7 @@ parse_clinical_mapping <- function(mapping_input) {
 #' @param metadata Optional metadata dataframe (Phase 1 sample metadata) to align patients
 #' @return Standardized clinical data frame with columns: patient_id, os_time, os_event, age, gender
 load_clinical_data <- function(file, column_map = NULL, metadata = NULL) {
+  suppressPackageStartupMessages(library(dplyr))
   if (is.null(file) || file == "") {
     stop("Clinical data file path must be provided")
   }

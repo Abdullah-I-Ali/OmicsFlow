@@ -1,6 +1,6 @@
 ---
-title: "OmicsFlow v1.0.0 — Multi-Omics Analysis Report"
-subtitle: "Stable Core Release"
+title: "`r paste('OmicsFlow', params$version, '— Multi-Omics Analysis Report')`"
+subtitle: "`r params$subtitle`"
 author: "Abdullah Ibrahim Ali"
 date: today
 format:
@@ -21,6 +21,8 @@ format:
     lightbox: true
 params:
   results_dir: "../results"
+  version: "v1.0.0"
+  subtitle: "Stable Core Release"
 execute:
   echo: false
   warning: false
@@ -36,14 +38,18 @@ res <- params$results_dir
 
 # --- Helper: safely read QC JSON ---
 read_qc <- function(module) {
-  path <- file.path(res, module, "qc_metrics.json")
+  mod_map <- c(rna="output_rna", methylation="output_meth", cnv="output_cnv", snv="output_snv", integration="output_integration", ml="output_ml", pathway="output_enrichment")
+  actual_module <- if (module %in% names(mod_map)) mod_map[[module]] else module
+  path <- file.path(res, actual_module, "qc_metrics.json")
   if (file.exists(path)) fromJSON(path) else list()
 }
 
 # --- Helper: safely include image with lightbox and download links ---
 include_figure <- function(module, basename, caption_what="", caption_why="", caption_conclusion="") {
-  png_path <- file.path(res, module, "plots", paste0(basename, ".png"))
-  pdf_path <- file.path(res, module, "plots", paste0(basename, ".pdf"))
+  mod_map <- c(rna="output_rna", methylation="output_meth", cnv="output_cnv", snv="output_snv", integration="output_integration", ml="output_ml", pathway="output_enrichment")
+  actual_module <- if (module %in% names(mod_map)) mod_map[[module]] else module
+  png_path <- file.path(res, actual_module, "plots", paste0(basename, ".png"))
+  pdf_path <- file.path(res, actual_module, "plots", paste0(basename, ".pdf"))
   
   if (file.exists(png_path)) {
     cat(sprintf('![<strong>What is shown:</strong> %s<br><strong>Why it matters:</strong> %s<br><strong>Main conclusion:</strong> %s](%s){.lightbox group="%s" fig-align="center"}
@@ -110,7 +116,7 @@ qc_ml   <- read_qc("ml")
 qc_enr  <- read_qc("pathway")
 
 # --- Auto-detect cohort / data source / methylation platform ---
-meta_path <- file.path(res, "rna", "sample_metadata.csv")
+meta_path <- file.path(res, "output_rna", "sample_metadata.csv")
 metadata <- if (file.exists(meta_path)) read.csv(meta_path, stringsAsFactors = FALSE) else NULL
 
 is_tcga <- is.null(metadata)
@@ -140,8 +146,8 @@ if (length(qc_meth) > 0 && !is.null(qc_meth$probes$raw)) {
 # Pipeline Overview {.unnumbered}
 
 <div class="of-cover">
-<h2>OmicsFlow v1.0.0 — Multi-Omics Analysis Report</h2>
-<p><strong>Stable Core Release</strong> &nbsp;·&nbsp; Author: Abdullah Ibrahim Ali</p>
+<h2>`r paste('OmicsFlow', params$version, '— Multi-Omics Analysis Report')`</h2>
+<p><strong>`r params$subtitle`</strong> &nbsp;·&nbsp; Author: Abdullah Ibrahim Ali</p>
 <p>Generated: `r format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")`</p>
 <div class="of-cover-meta">
 Omics layers integrated: RNA-seq &nbsp;|&nbsp; DNA Methylation (`r meth_platform`) &nbsp;|&nbsp; Copy Number Variation &nbsp;|&nbsp; Somatic Mutations (SNV)<br>
@@ -151,7 +157,7 @@ Pipeline: Preprocessing → MOFA+ Integration → Survival ML → Pathway Enrich
 
 ```{r overview-metrics, results='asis'}
 metric_grid_open()
-metric_card("OmicsFlow v1.0.0", "Pipeline Version", "font-size:1.1rem")
+metric_card(paste("OmicsFlow", params$version), "Pipeline Version", "font-size:1.1rem")
 metric_card(format(Sys.time(), "%Y-%m-%d"), "Report Date")
 metric_card("4", "Omics Layers")
 metric_card("7", "Modules Executed")
@@ -179,7 +185,7 @@ n_meth = if(length(qc_meth)>0 && !is.null(qc_meth$probes$after_na_filter)) qc_me
 n_cnv = if(length(qc_cnv)>0 && !is.null(qc_cnv$genes$final_genes)) qc_cnv$genes$final_genes else 0
 n_snv = if(length(qc_snv)>0 && !is.null(qc_snv$genes$final_genes)) qc_snv$genes$final_genes else 0
 
-cat('<strong>OmicsFlow v1.0.0</strong> successfully processed and integrated multi-omics data for <strong>', fmt(qc_ml$samples$total_valid_patients), '</strong> ', sample_class_label, ' samples.
+cat('<strong>OmicsFlow ', params$version, '</strong> successfully processed and integrated multi-omics data for <strong>', fmt(qc_ml$samples$total_valid_patients), '</strong> ', sample_class_label, ' samples.
 
 ')
 
@@ -360,7 +366,7 @@ if (length(qc_meth) > 0 && !is.null(qc_meth$filters)) {
 ### Probe Filtering Log
 
 ```{r meth-probe-log}
-probe_log_path <- file.path(res, "methylation/probe_filter_log.csv")
+probe_log_path <- file.path(res, "output_meth/probe_filter_log.csv")
 if (file.exists(probe_log_path)) {
   pl <- read.csv(probe_log_path, stringsAsFactors = FALSE)
   kable(pl, caption = "Probe counts through each filtering step")
@@ -536,7 +542,7 @@ if (length(qc_ml) > 0) {
 ### Model Performance Comparison
 
 ```{r ml-results-table}
-ml_csv <- file.path(res, "ml/ml_results_summary.csv")
+ml_csv <- file.path(res, "output_ml/ml_results_summary.csv")
 if (file.exists(ml_csv)) {
   ml_summary <- read.csv(ml_csv, stringsAsFactors = FALSE)
   kable(ml_summary, caption = "Survival model performance comparison — Harrell's C-index (0.5 = random, 1.0 = perfect discrimination)", digits = 4)
@@ -550,7 +556,7 @@ if (file.exists(ml_csv)) {
 ### Top Prognostic Biomarkers
 
 ```{r ml-features-table}
-feat_csv <- file.path(res, "ml/ml_top_features.csv")
+feat_csv <- file.path(res, "output_ml/ml_top_features.csv")
 if (file.exists(feat_csv)) {
   features <- read.csv(feat_csv, stringsAsFactors = FALSE)
   top20 <- head(features, 20)
@@ -642,7 +648,7 @@ include_figure("pathway", "pathway_emapplot", "Enrichment map showing relationsh
 ### Top KEGG Pathways Table
 
 ```{r enr-kegg-table}
-kegg_csv <- file.path(res, "pathway/kegg_results.csv")
+kegg_csv <- file.path(res, "output_enrichment/kegg_results.csv")
 if (file.exists(kegg_csv)) {
   kegg_df <- read.csv(kegg_csv, stringsAsFactors = FALSE)
   if (nrow(kegg_df) > 0) {
@@ -655,7 +661,7 @@ if (file.exists(kegg_csv)) {
 ### Top GO Biological Process Terms Table
 
 ```{r enr-bp-table}
-bp_csv <- file.path(res, "pathway/go_bp_results.csv")
+bp_csv <- file.path(res, "output_enrichment/go_bp_results.csv")
 if (file.exists(bp_csv)) {
   bp_df <- read.csv(bp_csv, stringsAsFactors = FALSE)
   if (nrow(bp_df) > 0) {
@@ -747,13 +753,13 @@ cat("</tbody></table>\n")
 cat(sprintf("Report generated: %s\n", Sys.time()))
 cat(sprintf("R version: %s\n", R.version.string))
 cat(sprintf("Results directory: %s\n", res))
-cat(sprintf("OmicsFlow version: v1.0.0\n"))
+cat(sprintf("OmicsFlow version: %s\n", params$version))
 ```
 
 ---
 
 <div style="text-align: center; color: #7f8c8d; font-size: 0.85rem; margin-top: 3rem;">
-OmicsFlow v1.0.0 — Stable Core Release<br>
+`r paste('OmicsFlow', params$version, '—', params$subtitle)`<br>
 Author: Abdullah Ibrahim Ali<br>
 Generated by the OmicsFlow automated reporting system
 </div>

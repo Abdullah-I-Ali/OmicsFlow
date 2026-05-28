@@ -1,0 +1,25 @@
+# Fix Quarto Reporting Architecture & Empty Metrics
+
+The recent realistic validation report generated an HTML file, but all its metrics were zero or missing, and no images loaded. This plan addresses the root causes of the reporting bugs.
+
+## Root Cause Analysis
+1. **Empty Metrics & Missing Plots**: The Quarto orchestrator was passing `-P results_dir:results/realistic_validation`. However, since the `.qmd` file is located in the `reports/` folder, Quarto executes with `reports/` as its working directory. Thus, it was looking for data in `reports/results/realistic_validation/`, which does not exist. Because the metrics and plot files couldn't be found, the `.qmd` silently returned zero/empty values and printed placeholder warnings.
+2. **Broken Architecture**: The script moved the generated HTML into the `results/` folder, violating the original project architecture which keeps reports in the `reports/` folder.
+3. **Stale Metadata**: The `.qmd` hardcodes `v1.0.0` and references "TCGA data", which doesn't reflect the realistic validation cohort.
+
+## Proposed Changes
+
+### `run_realistic_validation.R`
+- **[MODIFY]** Update the Quarto command to pass a relative path correctly resolved from the `reports/` directory: `-P results_dir:../results/realistic_validation`.
+- **[MODIFY]** Remove the `file.rename` command that moves the report to `results/`. Let it render and stay in `reports/OmicsFlow_Report.html`.
+
+### `reports/OmicsFlow_Report.qmd`
+- **[MODIFY]** Remove hardcoded `v1.0.0` references in the YAML frontmatter, metric cards, and summary text. Use dynamic or generic realistic cohort titles.
+- **[MODIFY]** Ensure `results_dir` defaults to `../results` rather than failing.
+
+## Verification Plan
+After applying the fixes, I will:
+1. Re-run only the Quarto report generation step.
+2. Verify that `reports/OmicsFlow_Report.html` is generated.
+3. Validate that the HTML file size increases significantly (since `self-contained: true` will embed actual plots).
+4. Verify that the output path strictly adheres to the requested architecture (`reports/OmicsFlow_Report.html`).

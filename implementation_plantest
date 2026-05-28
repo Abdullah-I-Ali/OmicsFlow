@@ -1,0 +1,99 @@
+# Realistic Oncology Cohort Validation Dataset
+
+Generate a biologically realistic multi-omics oncology cohort in `data/realistic_cohort/`, then run the full OmicsFlow pipeline and produce a comprehensive PASS/FAIL validation report.
+
+## Proposed Changes
+
+### 1. Data Generation Script
+
+#### [NEW] [generate_realistic_cohort.R](file:///h:/omicsflow_test/generate_realistic_cohort.R)
+
+A single R script that generates all data files into `data/realistic_cohort/`. **Does NOT touch `data/synthetic_cohort/`.**
+
+**Patient Design (N=180):**
+- **Subtype A — "Proliferative"** (60 patients): TP53-mutant, MYC-amplified, hypomethylated, high cell-cycle gene expression, worst prognosis (median OS ~400 days, 75% event rate)
+- **Subtype B — "Mesenchymal"** (60 patients): COL1A1/FN1 ECM signature, intermediate methylation, moderate CNV burden, intermediate prognosis (median OS ~900 days, 55% event rate)
+- **Subtype C — "Immune-enriched"** (60 patients): CD8A/PDCD1 immune markers, hypermethylated promoters, low CNV, best prognosis (median OS ~1600 days, 35% event rate)
+
+**Biological Signal Architecture:**
+
+| Data Layer | Subtype Signal | Survival Signal | Technical Noise |
+|---|---|---|---|
+| **RNA** (2000 genes × 180 samples) | 50 marker genes per subtype with shifted means | Top 20 genes correlated with OS via Cox coefficients | Batch shift (3 batches), center effect (2 centers) |
+| **Methylation** (5000 probes × 180 samples) | Subtype-specific hyper/hypomethylation blocks | 30 probes with survival-correlated beta shifts | Batch-level beta offset |
+| **CNV** (segments per patient) | Amplification/deletion hotspots per subtype | Gain in chr8q (MYC) associated with poor OS | Random background segments |
+| **SNV** (MAF-like per patient) | Subtype-enriched driver mutations (TP53, KRAS, etc.) | TP53 mutation → worse survival | Varying TMB across subtypes |
+
+**Survival Model:**
+- Weibull distributions per subtype with distinct shape/scale
+- Censoring via uniform administrative censoring (study end = 2500 days)
+- Cox-linked molecular features: a weighted combination of ~10 gene expression features modulates individual hazard
+- Target: 50-60% overall event rate, clinically realistic distributions
+
+**Technical Effects:**
+- 3 batches (B1, B2, B3) with additive shifts in RNA/meth
+- 2 centers (Center_Alpha, Center_Beta) — confounded with batch (B1+B2 → Alpha, B3 → Beta)
+- Batch effects are moderate (~10-20% of biological variance)
+
+**Output Files:**
+| File | Format | Description |
+|---|---|---|
+| `sample_metadata.csv` | CSV | sample_id, patient_id, sample_class, batch, center, subtype |
+| `custom_clinical.tsv` | TSV | patient, OS_time, OS_event, age, sex, subtype, stage |
+| `clinical_map.json` | JSON | Column mapping for clinical abstraction layer |
+| `rna.rds` | RDS | Integer count matrix (2000 genes × 180 samples) with ENSEMBL rownames |
+| `meth.rds` | RDS | Beta-value matrix (5000 cg-probes × 180 samples) |
+| `cnv.rds` | RDS | Segment data.frame (Sample, Chromosome, Start, End, Segment_Mean, Num_Probes) |
+| `snv.rds` | RDS | MAF-like data.frame (Tumor_Sample_Barcode, Hugo_Symbol, etc.) |
+
+---
+
+### 2. Validation Runner Script
+
+#### [NEW] [run_realistic_validation.R](file:///h:/omicsflow_test/run_realistic_validation.R)
+
+Mirrors [run_validation_script.R](file:///h:/omicsflow_test/run_validation_script.R) but points to `data/realistic_cohort/` and outputs to `results/realistic_validation/`. Runs all 7 pipeline stages:
+
+1. **RNA preprocessing** → `results/realistic_validation/output_rna/`
+2. **Methylation preprocessing** → `results/realistic_validation/output_meth/`
+3. **CNV preprocessing** → `results/realistic_validation/output_cnv/`
+4. **SNV preprocessing** → `results/realistic_validation/output_snv/`
+5. **MOFA+ Integration** → `results/realistic_validation/output_integration/`
+6. **ML survival analysis** → `results/realistic_validation/output_ml/`
+7. **Pathway enrichment** → `results/realistic_validation/output_enrichment/`
+
+After all modules, the script:
+- Collects QC JSONs from each module
+- Computes cohort summary statistics
+- Computes survival statistics (KM estimates per subtype)
+- Summarizes enriched pathways
+- Summarizes latent factors from MOFA
+- Produces a final **PASS/FAIL report** printed to console and saved as `results/realistic_validation/validation_report.txt`
+
+**PASS criteria:**
+- All 7 modules exit code 0
+- ≥ 100 common patients across all omics after preprocessing
+- ≥ 1 active MOFA factor
+- At least 1 ML model with C-index > 0.5
+- ≥ 1 enriched GO or KEGG pathway
+
+---
+
+### 3. Gene Coordinate Cache
+
+#### [NEW] [make_realistic_cache.R](file:///h:/omicsflow_test/make_realistic_cache.R)
+
+Creates `realistic_cache.rds` — a gene coordinate cache matching the gene symbols used in the CNV data, so the CNV module can map segments → genes without downloading from Ensembl.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. Run `Rscript generate_realistic_cohort.R` — verify all 7 files created
+2. Run `Rscript run_realistic_validation.R` — verify all modules pass
+3. Check console output for the final PASS/FAIL report
+
+### Manual Verification
+- Inspect `results/realistic_validation/validation_report.txt` for the full summary
+- Review QC plots in each output directory to confirm subtype separation is visible
