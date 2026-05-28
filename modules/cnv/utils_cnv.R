@@ -73,7 +73,7 @@ load_cnv_data <- function(cnv_file, gene_cache_file) {
   cnv_data <- as.data.frame(cnv_raw)
   
   # Ensure necessary columns are present
-  required_cols <- c("GDC_Aliquot", "Chromosome", "Start", "End", "Num_Probes", "Segment_Mean", "Sample")
+  required_cols <- c("Chromosome", "Start", "End", "Num_Probes", "Segment_Mean", "Sample")
   missing_cols <- setdiff(required_cols, colnames(cnv_data))
   if (length(missing_cols) > 0) {
     stop("Missing required columns in CNV data: ", paste(missing_cols, collapse = ", "))
