@@ -83,7 +83,7 @@ if (!requireNamespace("remotes", quietly = TRUE)) {
 # Install OmicsFlow from the release usability branch
 remotes::install_github(
     "Abdullah-I-Ali/OmicsFlow",
-    ref = "feature/rstudio-usability"
+    ref = "feature/omicsflow-package"
 )
 ```
 :::
