@@ -1,5 +1,5 @@
 ---
-title: "OmicsFlow RStudio Quickstart Guide"
+title: "OmicsFlow RStudio Onboarding Experience"
 author: "OmicsFlow Documentation"
 format:
   html:
@@ -12,64 +12,114 @@ format:
     code-copy: true
 ---
 
+::: {.hero-section}
+<div class="hero-title">OmicsFlow</div>
+<div class="hero-subtitle">Dynamic Multi-Omics Analysis & Survival Forecasting Framework for R & Nextflow</div>
+<p class="hero-desc">
+  OmicsFlow orchestrates multi-omics alignment, factor integration via MOFA+, machine learning survival modeling, and pathway enrichment under a highly cohesive, programmatic R interface.
+</p>
+<div class="badge-container">
+  <span class="badge-item primary">R Package v2.0.0-beta</span>
+  <span class="badge-item accent">Nextflow Engine</span>
+  <span class="badge-item">MOFA+ Integration</span>
+  <span class="badge-item">ML Survival Models</span>
+  <span class="badge-item">Interactive Dashboards</span>
+</div>
+:::
+
 ## Introduction
 
-Welcome to **OmicsFlow**! 
+Welcome to **OmicsFlow**! The platform is now fully installable as an **R package**, allowing you to execute complete multi-omics integration and survival forecasting workflows natively from RStudio or any R environment.
 
-OmicsFlow is now installable directly as an **R package**, allowing you to orchestrate the entire multi-omics integration and survival forecasting pipeline natively from RStudio or any R environment. 
-
-This workflow provides a highly usable, dynamic multi-omics execution layer while preserving the validated scientific analytical core. If you require massive parallelization across clusters or clouds, or strictly reproducible containerized execution, the Nextflow CLI remains fully available as the HPC/reproducibility layer.
+This quickstart guides you through the high-usability programmatic layer designed for rapid data exploration. For large-scale HPC execution, containerized parallelization, or strict clinical workflow audits, the Nextflow command-line interface remains fully supported as our high-performance infrastructure layer.
 
 ---
 
-## 1. Installation
+### Core Data & Execution Flow
 
-You can install the lightweight orchestration package directly from GitHub:
+Below is the conceptual architecture of the OmicsFlow R workflow. It highlights how files flow from raw omics matrices into metadata validation, core execution, and finally compile into the publication-ready dashboard.
+
+```mermaid
+flowchart TD
+    %% Styling Classes
+    classDef fileNode fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#334155,font-size:11px;
+    classDef coreStep fill:#ffffff,stroke:#0f766e,stroke-width:2px,color:#0f172a,font-size:13px;
+    classDef reportNode fill:#eef2ff,stroke:#4f46e5,stroke-width:2px,color:#4f46e5,font-weight:bold;
+    
+    A[Raw Omics Matrices]:::fileNode --> Step4[generate_metadata_templates]:::coreStep
+    
+    Step4 --> B[sample_metadata.csv]:::fileNode
+    Step4 --> C[custom_clinical_template.tsv]:::fileNode
+    Step4 --> D[clinical_map.json]:::fileNode
+    
+    B --> Step5[validate_inputs]:::coreStep
+    C --> Step5
+    D --> Step5
+    
+    Step5 -->|Pre-flight Verified| Step6[omicsflow]:::coreStep
+    
+    Step6 --> E[MOFA+ Integration]:::fileNode
+    Step6 --> F[Cox & XGBoost Survival]:::fileNode
+    Step6 --> G[Pathway GSEA]:::fileNode
+    
+    E --> Report[OmicsFlow_Report.html]:::reportNode
+    F --> Report
+    G --> Report
+```
+
+---
+
+::: {.workflow-step}
+## <span class="step-num">1</span> Installation
+
+Install the lightweight orchestration package directly from GitHub inside your R session:
 
 ```r
-# Install the remotes package if you do not have it
-install.packages("remotes")
+# Install remotes if missing
+if (!requireNamespace("remotes", quietly = TRUE)) {
+    install.packages("remotes")
+}
 
-# Install OmicsFlow from the feature branch
+# Install OmicsFlow from the release usability branch
 remotes::install_github(
     "Abdullah-I-Ali/OmicsFlow",
     ref = "feature/rstudio-usability"
 )
 ```
+:::
 
----
+::: {.workflow-step}
+## <span class="step-num">2</span> Load the Package
 
-## 2. Load the Package
-
-Load the package into your current R session:
+Load the library to register the namespace and functions:
 
 ```r
 library(OmicsFlow)
 ```
+:::
 
----
+::: {.workflow-step}
+## <span class="step-num">3</span> Install Scientific Dependencies
 
-## 3. Install Scientific Dependencies
+The core OmicsFlow package is intentionally kept lightweight. Heavy scientific frameworks (such as `MOFA2`, `xgboost`, `edgeR`, and `clusterProfiler`) are dynamically installed and managed.
 
-The OmicsFlow R package itself is intentionally lightweight to ensure fast installation. However, it relies on several heavy scientific frameworks (like `MOFA2`, `xgboost`, and `clusterProfiler`) to execute the underlying biological modules.
-
-To automatically install any missing dependencies, use the dedicated installer helper:
+Run the helper command to install all scientific backends:
 
 ```r
 install_omicsflow_dependencies()
 ```
 
-::: {.callout-tip title="Scientific Frameworks"}
-This will actively check for and install the required CRAN and Bioconductor packages, automatically skipping any that are already available on your system.
+::: {.callout-tip title="Smart Skipping"}
+The dependency manager will actively inspect your environment and skip any CRAN or Bioconductor packages that are already installed, ensuring a fast setup time.
+:::
 :::
 
----
+::: {.workflow-step}
+## <span class="step-num">4</span> Generate Metadata Templates
 
-## 4. Generate Metadata Templates
+OmicsFlow uses an elegant metadata mapping system that eliminates the need to manually align IDs or rename matrix columns.
 
-OmicsFlow uses a universal metadata abstraction layer. This allows you to process mismatched omics matrices without manually renaming columns inside the raw data.
-
-To begin, supply the paths to the omics matrices you have. The pipeline will automatically scan them and generate the necessary templates:
+Generate template configuration structures based on your input matrices:
 
 ```r
 generate_metadata_templates(
@@ -79,106 +129,158 @@ generate_metadata_templates(
 )
 ```
 
-### Generated Files:
-- **`sample_metadata.csv`**: Maps your raw sample IDs to unified `patient_id`s across different modalities.
-- **`custom_clinical_template.tsv`**: An empty template (or generated from your input) for survival and covariate data.
-- **`clinical_map.json`**: A mapping schema that translates your local clinical column headers into the unified variables utilized by the survival models.
-- **`validation_report.txt`**: A brief summary of the detected inputs.
-
-::: {.callout-important title="Review Generated Templates"}
-You must review and manually edit `sample_metadata.csv` and `custom_clinical_template.tsv` to ensure all patient linkages and clinical events are accurate before proceeding with the execution.
+::: {.expected-output}
+<div class="expected-output-title">
+  <i class="bi bi-folder-check"></i> Expected Generated Files
+</div>
+```text
+templates/
+├── sample_metadata.csv           # Maps raw sample IDs to unique patient IDs
+├── custom_clinical_template.tsv   # Empty clinical table (for survival & covariates)
+├── clinical_map.json              # Schema mapping local headers to survival variables
+└── validation_report.txt          # Summary of data files, dimensions, and types
+```
 :::
 
----
+::: {.callout-important title="Required Action"}
+Review and manually populate `sample_metadata.csv` and `custom_clinical_template.tsv` to ensure all patient associations and survival outcomes are correctly aligned before running the analysis.
+:::
+:::
 
-## 5. Validate Inputs
+::: {.workflow-step}
+## <span class="step-num">5</span> Validate Inputs
 
-Before executing the full pipeline, run the pre-flight validation checker. This ensures that all required files exist, metadata schemas are correct, and matrix sample IDs perfectly align with the metadata.
+Verify that your physical files exist, patient links match perfectly, and mapping schemas are scientifically consistent:
 
 ```r
-validate_inputs(
+validation <- validate_inputs(
     rna = "data/mycohort/rna.rds",
     meth = "data/mycohort/meth.rds",
     metadata = "templates/sample_metadata.csv"
 )
 ```
 
----
+::: {.expected-output}
+<div class="expected-output-title">
+  <i class="bi bi-braces"></i> Validation Structured S3 Object Output
+</div>
+```r
+# Returned S3 Object (class: omicsflow_validation)
+list(
+    status              = "success",
+    valid               = TRUE,
+    detected_modalities = c("rna", "meth"),
+    skipped_modalities  = c("cnv", "snv"),
+    messages            = "All checks completed. File links and sample mappings are aligned.",
+    warnings            = character(0)
+)
+```
+:::
+:::
 
-## 6. Run OmicsFlow
+::: {.workflow-step}
+## <span class="step-num">6</span> Run OmicsFlow Pipeline
 
-Once your inputs are validated, you can execute the entire pipeline with a single function call:
+Launch the entire pipeline — including normalization, multi-omics factor alignment, survival predictive modeling, pathway scoring, and automated markdown compilation — using a single command:
 
 ```r
-omicsflow(
-    rna = "data/mycohort/rna.rds",
-    meth = "data/mycohort/meth.rds",
-    metadata = "templates/sample_metadata.csv",
-    clinical = "templates/custom_clinical_template.tsv",
+results <- omicsflow(
+    rna          = "data/mycohort/rna.rds",
+    meth         = "data/mycohort/meth.rds",
+    metadata     = "templates/sample_metadata.csv",
+    clinical     = "templates/custom_clinical_template.tsv",
     clinical_map = "templates/clinical_map.json",
-    outdir = "results/myrun"
+    outdir       = "results/myrun"
 )
 ```
 
----
-
-## 7. Dynamic Modality Support
-
-OmicsFlow is built to be highly flexible. **Any combination of $\ge 2$ omics modalities is supported.** 
-
-The integration engine (MOFA+) requires at least two views to extract shared latent factors. Modalities that are omitted (passed as `NULL`) are handled gracefully and skipped automatically.
-
-### Valid Execution Examples:
-- **Transcriptomics & Epigenomics:** `rna` + `meth`
-- **Transcriptomics & Genomics:** `rna` + `snv`
-- **Epigenomics, Copy Number, & Genomics:** `meth` + `cnv` + `snv`
-- **Full Multi-Omics:** `rna` + `meth` + `cnv` + `snv`
-
----
-
-## 8. Reports & Outputs
-
-If `render_report = TRUE` (the default setting), OmicsFlow will automatically compile a Quarto-driven HTML dashboard upon completion. 
-
-The final outputs and report can be located in your defined output directory:
-```text
-results/myrun/reports/OmicsFlow_Report.html
-```
-
-The self-contained interactive report includes:
-- Interactive PCA and Preprocessing Plots
-- MOFA+ Latent Factor Variance Metrics
-- Machine Learning Survival Curves (Kaplan-Meier)
-- Pathway Enrichment Network Maps
-
----
-
-## 9. Troubleshooting
-
-### Missing Scientific Dependencies
-
-::: {.callout-tip title="Quick Fix"}
-If the pipeline halts indicating missing packages (e.g., `clusterProfiler` or `MOFA2`), simply re-run the dependency installer:
+::: {.expected-output}
+<div class="expected-output-title">
+  <i class="bi bi-braces"></i> Execution Structured S3 Object Output
+</div>
 ```r
-install_omicsflow_dependencies()
+# Returned S3 Object (class: omicsflow_result)
+list(
+    status              = "success",
+    report_path         = "results/myrun/reports/OmicsFlow_Report.html",
+    output_dirs         = list(
+        data            = "results/myrun/data",
+        mofa            = "results/myrun/mofa",
+        survival        = "results/myrun/survival",
+        enrichment      = "results/myrun/enrichment",
+        reports         = "results/myrun/reports"
+      ),
+    executed_modalities = c("rna", "meth"),
+    skipped_modalities  = c("cnv", "snv"),
+    warnings            = character(0),
+    runtime             = "34.2 secs"
+)
+```
+:::
+:::
+
+::: {.workflow-step}
+## <span class="step-num">7</span> Open HTML Report
+
+If `render_report = TRUE` (default), OmicsFlow compiles an interactive, presentation-ready dashboard summarizing your biological insights.
+
+Locate your files inside the output folder structure:
+
+::: {.expected-output}
+<div class="expected-output-title">
+  <i class="bi bi-folder2-open"></i> Results Directory Structure
+</div>
+```text
+results/myrun/
+├── data/                  # Preprocessed, aligned expression/epigenetic matrices
+├── mofa/                  # Model outputs, weights, and factor variance statistics
+├── survival/              # Kaplan-Meier curves, Cox models, and XGBoost predictors
+├── enrichment/            # Pathway and functional gene set scoring models
+└── reports/
+    └── OmicsFlow_Report.html   # Final self-contained Interactive Dashboard
 ```
 :::
 
-### MOFA2 Installation (Python Environment)
+The comprehensive dashboard contains:
+* **Preprocessing QC**: PCA projections and variance plots per modality.
+* **MOFA+ Latent Factors**: Visualizations of variance explained and feature weights.
+* **Machine Learning Survival**: KM curves and Cox risk estimators.
+* **Pathway Networks**: Visual interaction maps for key pathways.
+:::
 
-::: {.callout-warning title="Python Backend Required"}
-The `MOFA2` R package relies on a Python backend (`mofapy2`). If you encounter python-related MOFA errors, ensure you have Anaconda/Miniconda installed or run:
+---
+
+## Modality Flexibility
+
+OmicsFlow is fundamentally built to support **any dynamic combination of $\ge 2$ omics views**. 
+
+The integration engine requires at least two modalities to compute shared latent factors. If a modality is omitted or passed as `NULL`, OmicsFlow handles it gracefully and configures downstream steps automatically.
+
+### Supported Combinations Include:
+* **Transcriptomics & Epigenomics:** `rna` + `meth`
+* **Transcriptomics & Genomics:** `rna` + `snv`
+* **Epigenomics, CNV, & Genomics:** `meth` + `cnv` + `snv`
+* **Full Multi-Omics:** `rna` + `meth` + `cnv` + `snv`
+
+---
+
+## Troubleshooting & Best Practices
+
+### Scientific Dependency Failures
+If package updates or compiler toolchains cause missing package warnings at execution, re-run the dependency manager to align package namespaces:
+```r
+install_omicsflow_dependencies()
+```
+
+### Python Backend & MOFA2 Setup
+The core `MOFA2` package depends on a Python runtime. If you encounter initialization issues, run:
 ```r
 reticulate::install_miniconda()
 reticulate::py_install("mofapy2", pip = TRUE)
 ```
-:::
 
-### Windows Path Issues
+### Windows File Paths
+Ensure all paths passed to OmicsFlow functions use forward slashes (`/`) or fully-escaped backslashes (`\\`). Avoid single unescaped backslashes.
 
-::: {.callout-important title="Path Escaping"}
-Ensure that all file paths supplied to `omicsflow()` use forward slashes (`/`) or escaped backslashes (`\\`). Do not use raw single backslashes (`\`).
-:::
-
-### Container & HPC Recommendations
-If you are running on Windows and encounter complex dependency or compilation issues (especially with C++ heavy libraries), we strongly recommend utilizing **WSL2 (Windows Subsystem for Linux)** or the **Docker/Nextflow** workflow documented in the main README.
+### Clinical & Containerized Scalability
+If your local Windows workstation lacks necessary compilation toolchains for complex scientific libraries, consider using **WSL2 (Windows Subsystem for Linux)** or execution via the **Docker/Nextflow** engine detailed in the main package README.
