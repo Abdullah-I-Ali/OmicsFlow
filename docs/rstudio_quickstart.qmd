@@ -7,6 +7,7 @@ format:
     toc: true
     toc-depth: 3
     theme: cosmo
+    css: styles.css
     code-copy: true
 ---
 
@@ -57,7 +58,9 @@ To automatically install any missing dependencies, use the dedicated installer h
 install_omicsflow_dependencies()
 ```
 
-*This will check for and install the required CRAN and Bioconductor packages, skipping any that are already available on your system.*
+::: {.callout-tip title="Scientific Frameworks"}
+This will actively check for and install the required CRAN and Bioconductor packages, automatically skipping any that are already available on your system.
+:::
 
 ---
 
@@ -81,7 +84,9 @@ generate_metadata_templates(
 - **`clinical_map.json`**: A mapping schema that translates your local clinical column headers into the unified variables utilized by the survival models.
 - **`validation_report.txt`**: A brief summary of the detected inputs.
 
-*(You should review and edit `sample_metadata.csv` and `custom_clinical_template.tsv` to ensure all patient linkages and clinical events are accurate before proceeding.)*
+::: {.callout-important title="Review Generated Templates"}
+You must review and manually edit `sample_metadata.csv` and `custom_clinical_template.tsv` to ensure all patient linkages and clinical events are accurate before proceeding with the execution.
+:::
 
 ---
 
@@ -150,20 +155,29 @@ The self-contained interactive report includes:
 ## 9. Troubleshooting
 
 ### Missing Scientific Dependencies
+
+::: {.callout-tip title="Quick Fix"}
 If the pipeline halts indicating missing packages (e.g., `clusterProfiler` or `MOFA2`), simply re-run the dependency installer:
 ```r
 install_omicsflow_dependencies()
 ```
+:::
 
 ### MOFA2 Installation (Python Environment)
+
+::: {.callout-warning title="Python Backend Required"}
 The `MOFA2` R package relies on a Python backend (`mofapy2`). If you encounter python-related MOFA errors, ensure you have Anaconda/Miniconda installed or run:
 ```r
 reticulate::install_miniconda()
 reticulate::py_install("mofapy2", pip = TRUE)
 ```
+:::
 
 ### Windows Path Issues
+
+::: {.callout-important title="Path Escaping"}
 Ensure that all file paths supplied to `omicsflow()` use forward slashes (`/`) or escaped backslashes (`\\`). Do not use raw single backslashes (`\`).
+:::
 
 ### Container & HPC Recommendations
 If you are running on Windows and encounter complex dependency or compilation issues (especially with C++ heavy libraries), we strongly recommend utilizing **WSL2 (Windows Subsystem for Linux)** or the **Docker/Nextflow** workflow documented in the main README.

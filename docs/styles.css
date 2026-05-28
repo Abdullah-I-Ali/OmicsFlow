@@ -1,0 +1,121 @@
+/* docs/styles.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 1.15rem; /* larger readable body text */
+  line-height: 1.7; /* wider whitespace */
+  color: #1A202C; /* stronger text contrast */
+  background-color: #FAFAFC;
+}
+
+/* Page width */
+#quarto-content {
+  max-width: 950px !important;
+  margin: 0 auto;
+}
+
+main {
+  max-width: 950px !important;
+}
+
+/* Headings */
+h1, h2, h3, h4 {
+  color: #2D3748; /* stronger heading contrast */
+  font-weight: 700;
+  margin-top: 2.5rem;
+  margin-bottom: 1.2rem;
+}
+
+h2 {
+  font-size: 2.1rem;
+  border-bottom: 2px solid #E2E8F0;
+  padding-bottom: 0.5rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+}
+
+/* Links */
+a {
+  color: #3182CE;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #2B6CB0;
+  text-decoration: underline;
+}
+
+/* Paragraph spacing */
+p {
+  margin-bottom: 1.5rem;
+}
+
+/* Lists */
+ul, ol {
+  margin-bottom: 1.5rem;
+  padding-left: 2rem;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+/* Code Blocks */
+pre, code {
+  font-family: 'Fira Code', 'Courier New', Courier, monospace;
+}
+
+pre {
+  background-color: #1E293B !important; /* darker background */
+  border-radius: 8px !important; /* rounded corners */
+  padding: 1.5rem !important; /* improved padding */
+  overflow-x: auto; /* horizontal scrolling */
+  color: #F8FAFC !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+code {
+  font-size: 0.95rem; /* larger monospace font */
+}
+
+/* Inline Code */
+:not(pre) > code {
+  background-color: #EDF2F7;
+  color: #E53E3E;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+th, td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+th {
+  background-color: #F7FAFC;
+  font-weight: 600;
+  color: #4A5568;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
