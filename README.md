@@ -89,6 +89,16 @@ graph TD
 
 **Purpose:** Default user onboarding workflow.
 
+### Interactive Onboarding Guide
+
+Click here to open the fully interactive, browser-based HTML onboarding guide:
+
+[Open RStudio Quickstart](docs/rstudio_quickstart.html)
+
+---
+
+### Command Reference
+
 The R package provides a highly usable abstraction layer to interact with the scientific pipeline directly from RStudio or any R environment. The core package is lightweight, keeping heavy analytical dependencies dynamically installed when requested.
 
 ```r
