@@ -1,28 +1,28 @@
-# OmicsFlow v1.1.0
+# OmicsFlow
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A522.10.0-23aa62.svg)](https://nextflow.io/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
-[![Conda](https://img.shields.io/badge/conda-ready-green.svg)](https://conda.io/)
+[![Quarto](https://img.shields.io/badge/quarto-ready-4A90E2.svg)](https://quarto.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-OmicsFlow is a modular, parameterizable, and reproducible next-generation Nextflow orchestration pipeline designed for integrated multi-omics preprocessing, feature extraction, factorization, and downstream clinical survival forecasting on large-scale oncology datasets. It natively supports legacy TCGA/GDC cohorts as well as fully custom, metadata-driven external cohorts.
-
-OmicsFlow coordinates the standardisation of heterogeneous molecular views—including transcriptomics (RNA-seq), epigenomics (DNA Methylation), copy number variations (CNV), and somatic mutations (SNV)—and applies advanced latent factor analysis (MOFA+) alongside machine learning survival models to predict clinical outcomes and identify targetable biological pathways.
+**OmicsFlow** is a modular, parameterizable, and reproducible orchestration pipeline designed for integrated multi-omics preprocessing, latent feature extraction, and downstream clinical survival forecasting. It seamlessly coordinates heterogeneous molecular views—including transcriptomics (RNA-seq), epigenomics (DNA Methylation), copy number variations (CNV), and somatic mutations (SNV)—and applies advanced Multi-Omics Factor Analysis (MOFA+) alongside machine learning survival models to predict clinical outcomes and isolate targetable biological pathways.
 
 ---
 
-## What's New in v1.1.0
+## 1. Key Features
 
-- **Universal Metadata Layer:** Full support for custom external cohorts. Supply a `sample_metadata.csv` to seamlessly decouple the pipeline from TCGA-specific barcode assumptions.
-- **Clinical Data Abstraction Layer:** Use `--clinical_map` to provide configurable mappings for survival time, event status, age, gender, and tumor stage from any clinical dataset.
-- **Dynamic Report Generation:** The Quarto report template now auto-detects cohort types and methylation platforms, producing professional, cohort-agnostic summaries.
-- **Custom Pathway Validation:** Provide custom enrichment keywords via `--validation_keywords` to validate biological signatures specific to your disease context.
+- **Universal Metadata Abstraction Layer:** Full support for custom external cohorts. Supply a `sample_metadata.csv` to seamlessly decouple the pipeline from specific institutional or legacy barcode assumptions.
+- **Realistic Cohort Generation:** Generates synthetic, biologically realistic cohorts embedding ground-truth pathway signals (e.g., Cell Cycle, ECM Organization) and survival stratification for robust pipeline validation.
+- **Multi-Omics Integration (MOFA+):** Disentangles high-dimensional matrices into a low-dimensional space of interpretable latent factors capturing shared and modality-specific variance.
+- **Machine Learning Survival Modeling:** Employs LASSO Cox Regression, Random Survival Forests, and XGBoost to evaluate patient prognosis based on multi-omics factors.
+- **Automated Pathway Enrichment:** Maps highly prognostic omics features against Gene Ontology and KEGG databases to isolate critical biological mechanisms.
+- **Automated HTML Reporting:** Compiles all modular artifacts into a standalone, interactive Quarto HTML report complete with interactive Lightbox plots, Kaplan-Meier curves, and dynamic cohort analyses.
 
 ---
 
-## Pipeline Workflow
+## 2. Architecture Overview
 
-The complete analytical architecture is orchestrated as follows:
+The OmicsFlow analytical architecture is strictly modularized:
 
 ```mermaid
 graph TD
@@ -54,12 +54,12 @@ graph TD
 
     %% Downstream Analytics
     subgraph Functional Interpretation
-        ENR[Pathway Over-Representation ORA: GO-BP, GO-MF, GO-CC, KEGG]
+        ENR[Pathway Over-Representation ORA]
     end
 
     %% Reporting Layer
     subgraph Auto-Generated Reports
-        REP[Quarto Automated PDF/HTML Interactive Report]
+        REP[Quarto Automated HTML Report]
     end
 
     %% Connectors
@@ -78,173 +78,104 @@ graph TD
     ENR --> REP
 ```
 
----
-
-## Architecture Summary
-
-- **Preprocessing:** Standardizes and normalizes raw inputs. RNA-seq undergoes TMM normalization and log2 CPM conversion; DNA Methylation receives robust probe-level filtering (NA, invariant, cross-reactive) and imputation; CNV segments are mapped to high-level gene matrices; SNV data is parsed into functionally filtered occurrence maps.
-- **Integration:** Multi-Omics Factor Analysis (MOFA+) distills high-dimensional matrices into a low-dimensional space of interpretable latent factors capturing shared and modality-specific variance.
-- **Machine Learning (ML):** Evaluates patient prognosis using LASSO Cox Regression, Random Survival Forests, and XGBoost on the extracted MOFA factors. Extracts the most prognostic features for downstream interpretation.
-- **Enrichment:** Functional Pathway Over-Representation Analysis (ORA) maps highly prognostic features against Gene Ontology (BP, MF, CC) and KEGG databases to isolate biological mechanisms.
-- **Reporting:** Automatically complies all module artifacts into a standalone, interactive Quarto HTML/PDF report complete with interactive Lightbox plots, Kaplan-Meier curves, and dynamic cohort analysis text.
+- **Preprocessing:** Standardizes and normalizes raw inputs. Eliminates technical batch effects and isolates high-variance features.
+- **Integration:** MOFA+ factorizes the processed modalities into latent structures.
+- **ML & Forecasting:** Extracted factors are passed to predictive algorithms to stratify survival risks.
+- **Enrichment:** Prognostic features undergo Over-Representation Analysis (ORA).
+- **Reporting:** Renders a cohesive, interactive summary via Quarto.
 
 ---
 
-## Supported Cohorts
+## 3. Installation
 
-OmicsFlow can process any cohort provided the required omics matrices, clinical data, and metadata mappings are supplied. Supported cohort types include:
+OmicsFlow relies on R (>= 4.3), Nextflow (optional for orchestration), and Quarto for dynamic reporting. 
 
-- TCGA
-- GDC-derived cohorts
-- ICGC-style cohorts
-- Local institutional cohorts
-- Custom metadata-driven cohorts
+### Windows (Recommended Setup)
+For Windows users, we **strongly recommend** using **WSL2 (Windows Subsystem for Linux)** combined with **Docker**.
+1. Install WSL2 and a Linux distribution (e.g., Ubuntu).
+2. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and enable WSL2 integration.
+3. Install [Quarto](https://quarto.org/docs/get-started/) on your host machine and make sure it is in your system `PATH`.
 
----
-
-## Installation & Prerequisites
-
-To run OmicsFlow, ensure the following core utilities are installed on your host system:
-
-- **Nextflow** (`>=22.10.0`)
-- **Java** (`>=11`)
-- **Docker** (recommended) or **Miniconda/Mamba**
-
-### 1. Containerized Setup (Recommended)
-Build the stable release image locally:
-```bash
-# Clone the repository
-git clone https://github.com/Abdullah-I-Ali/omicsflow.git
-cd omicsflow
-
-# Build the Docker image
-docker build -t omicsflow:1.1.0 .
-```
-
-### 2. Local Conda Setup (Alternative)
-Create the environment containing R, Python, and the necessary bioinformatics packages:
-```bash
-conda env create -f envs/omicsflow.yml
-conda activate omicsflow
-```
+### Linux / macOS
+Ensure you have the core R environment and Quarto installed. You can utilize Docker for an isolated execution environment, or manually run the pipeline using the provided `.R` orchestration scripts.
 
 ---
 
-## Running OmicsFlow
+## 4. Running the Pipeline
 
-OmicsFlow executes standard pipelines with simplified CLI parameter flags, supporting both legacy TCGA execution and fully custom metadata-driven execution.
+OmicsFlow can be triggered using modular R scripts designed for testing and execution.
 
-### Example A: TCGA Fallback Mode (Legacy)
-If no metadata is provided, OmicsFlow automatically parses sample types, batches, and patient IDs directly from standard 12/15/28-character TCGA barcodes.
+### Standard Pipeline Execution
+If you have your own data (properly formatted according to the OmicsFlow schemas), you can point the execution scripts to your data directories.
+
+### Realistic Validation Framework Execution
+To validate the mathematical correctness and biological fidelity of the pipeline, OmicsFlow includes a Realistic Cohort Validation generator. This script generates ground-truth multi-omics data, executes the pipeline, and generates a validation report.
 
 ```bash
-nextflow run main.nf \
-  --rna "data/raw_rna.rds" \
-  --meth "data/raw_meth.rds" \
-  --cnv "data/raw_cnv.rds" \
-  --snv "data/raw_snv.rds" \
-  --clinical "data/tcga_clinical.tsv" \
-  --cross_react "configs/cross_reactive_probes.csv" \
-  --gene_coords "configs/gene_coordinates.rds" \
-  --outdir "results" \
-  -profile docker
+# From the repository root
+Rscript run_realistic_validation.R
 ```
 
-### Example B: Metadata-Driven Mode (Custom Cohorts)
-For non-TCGA cohorts, supply a standardized `sample_metadata.csv` and an optional `clinical_map.json` to seamlessly integrate custom identifiers.
-
-```bash
-nextflow run main.nf \
-  --rna "data/raw_rna.rds" \
-  --meth "data/raw_meth.rds" \
-  --cnv "data/raw_cnv.rds" \
-  --snv "data/raw_snv.rds" \
-  --clinical "data/custom_clinical.tsv" \
-  --metadata "data/sample_metadata.csv" \
-  --clinical_map "configs/clinical_map.json" \
-  --cross_react "configs/cross_reactive_probes.csv" \
-  --gene_coords "configs/gene_coordinates.rds" \
-  --outdir "results" \
-  -profile docker
-```
+*This command automatically manages data generation, executes the 7 core analytical modules, and renders the Quarto report.*
 
 ---
 
-## Metadata Schema Example
+## 5. Realistic Validation Framework
 
-Provide a minimal example `sample_metadata.csv`:
+The realistic validation framework is designed to test the pipeline against data that behaves like genuine human oncology datasets, complete with correlated noise, technical artifacts, and embedded biological truth.
 
-```csv
-sample_id,patient_id,sample_class,batch,center
-RNA_001,P001,Tumor,B1,SiteA
-RNA_002,P002,Tumor,B1,SiteA
-```
+**Biological Subtypes:** 
+The simulation generates 150-200 patients stratified across three distinct molecular subtypes:
+1. **Proliferative (Subtype A):** Driven by severe Cell Cycle dysregulation and widespread Copy Number amplification. Characterized by poor survival.
+2. **Stromal/Mesenchymal (Subtype B):** Driven by Extracellular Matrix (ECM) organization and distinct methylation silencing. Characterized by intermediate survival.
+3. **Immune Inflamed (Subtype C):** Driven by Immune Response activation and high mutational burdens. Characterized by favorable survival.
 
-- **sample_id**: unique molecular sample identifier
-- **patient_id**: patient identifier used for cross-omics matching
-- **sample_class**: user-defined sample grouping
-- **batch**: technical batch variable
-- **center**: optional collection center
+**Realistic Confounders:**
+The simulation injects center-specific technical batch effects which the pipeline must computationally resolve via ComBat algorithms before downstream ML prediction.
+
+> **Note on Validation Limitations:** 
+> The realistic cohort generator is biologically *inspired* to validate software architecture, statistical power, and algorithmic integration. It is strictly a **research validation tool** and is **not intended for clinical decision-making** or benchmarking absolute biological ground truth. Real-world implementation requires validation on genuine patient cohorts (e.g., TCGA, GEO).
 
 ---
 
-## Output Directory Structure
+## 6. Outputs and Example Results
 
-Upon completion, all standardized results, plots, metadata, and HTML logs are populated in the specified output directory:
+OmicsFlow produces strict, structured, namespaced outputs for each module in the `results/` directory:
 
 ```text
-results/
-├── rna/                    # Standardized transcriptomic expression matrices & batch-correction diagnostics
-│   ├── preprocess_rna.rds
-│   └── plots/              # CPM density plots & PCA alignments (Before vs. After correction)
-├── methylation/            # Filtered probe levels & high-variance epigenomic matrices
-│   ├── preprocess_meth.rds
-│   └── plots/              # Beta-value density profiles
-├── cnv/                    # Aggregated gene-level copy number levels
-│   └── preprocess_cnv.rds
-├── snv/                    # Clean mutation occurrence grids & cohort frequency stats
-│   ├── preprocess_snv.rds
-│   └── plots/              # Mutation frequency & oncoplot visualization
-├── integration/            # Trained MOFA+ model, latent factor weights, and variance maps
-│   ├── mofa_model.rds
-│   └── plots/              # Variance explained & factor correlation heatmaps
-├── ml/                     # Survival model outputs, validation statistics, & biomarkers
-│   ├── ml_results.rds      # Fitted survival models & cross-validation metrics
-│   └── plots/              # Kaplan-Meier curves & biomarker feature-importance rank
-├── enrichment/             # Functional pathway mapping & database matches
-│   ├── go_bp_results.csv   # Enriched GO Biological Process terms (FDR ≤ 0.05)
-│   ├── kegg_results.csv    # Enriched KEGG Pathway terms (FDR ≤ 0.05)
-│   └── plots/              # Gene-concept network (cnetplot) & Enrichment Map (emapplot)
-└── reports/                # Production release reports
-    ├── OmicsFlow_Report.qmd
-    └── OmicsFlow_Report.html # Standalone interactive publication-ready HTML report
+results/realistic_validation/
+├── output_rna/              # Log2 CPM matrices & batch-correction PCA plots
+├── output_meth/             # Filtered beta-values & probe density distributions
+├── output_cnv/              # Gene-mapped amplification/deletion matrices
+├── output_snv/              # Mutational frequency grids and oncoplots
+├── output_integration/      # MOFA model (.hdf5/.rds) & variance landscape plots
+├── output_ml/               # Survival models (LASSO, RSF), feature ranks, KM plots
+├── output_enrichment/       # GO/KEGG pathway lists, network plots (cnetplot)
+└── reports/
+    └── OmicsFlow_Report.html # The final auto-generated report
 ```
 
----
-
-## Reproducibility & Stability
-
-OmicsFlow v1.1.0 enforces strict computational reproducibility:
-1. **Version Locking:** Core packages are frozen within [envs/omicsflow.yml](envs/omicsflow.yml) and the corresponding container registry.
-2. **Fixed Random Seeds:** Pipelines and downstream modules (MOFA+ factor initialization, train/test cross-validation folds, and Random Survival Forest simulations) use identical hardcoded seeds to guarantee bitwise consistency across runs.
-3. **Execution Portability:** Separation of workflow logic (Nextflow) from computational runtime (Docker/Singularity/Conda) ensures identical results on standalone laptops, local workstations, and distributed SLURM clusters.
+### Example Results
+Upon running the realistic validation framework, users can expect the pipeline to dynamically recover:
+- **Batch Effect Resolution:** Pre- and post-correction PCA plots demonstrating center-effect harmonization.
+- **Subtype Separation:** MOFA factors distinctly clustering the Proliferative, Stromal, and Immune subtypes.
+- **Survival Stratification:** Kaplan-Meier curves successfully validating the differential prognosis of the three subtypes.
+- **Pathway Discovery:** GO Biological Process terms isolating embedded signals like *"cell cycle"*, *"extracellular matrix organization"*, and *"immune response"*.
 
 ---
 
-## Example Report Previews
+## 7. Roadmap
 
-Example report screenshots and interactive figures are available directly within the generated HTML report outputs.
+- [ ] **Real TCGA Benchmarking:** Direct pipeline application to standard TCGA pan-cancer datasets.
+- [ ] **GEO Validation:** Expansion to independent microarray and sequencing cohorts.
+- [ ] **Containerization:** Finalizing Nextflow + Docker images for robust cross-platform reproducibility.
+- [ ] **Cloud/HPC Support:** AWS Batch and SLURM integration profiles.
 
 ---
 
-## Citation & Reference
+## 8. Citation & Authors
 
-If you use OmicsFlow in your research, please cite this framework as follows:
-
-```text
-OmicsFlow: A Modular Nextflow Pipeline for Integrated Multi-Omics and Survival Forecasting
-Version: v1.1.0 (Stable Release)
-Author: Abdullah Ibrahim Ali
-Year: 2026
-Repository: https://github.com/Abdullah-I-Ali/omicsflow
-```
+**OmicsFlow: A Modular Pipeline for Integrated Multi-Omics and Survival Forecasting**  
+**Author:** Abdullah Ibrahim Ali  
+**Year:** 2026  
+**Repository:** [https://github.com/Abdullah-I-Ali/omicsflow](https://github.com/Abdullah-I-Ali/omicsflow)  
