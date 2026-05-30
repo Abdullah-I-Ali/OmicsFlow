@@ -16,6 +16,7 @@
 #' @param metadata Path to sample metadata CSV file (required for execution)
 #' @param clinical Path to clinical TSV/CSV file, or NULL
 #' @param clinical_map Path to clinical mapping JSON file, or NULL
+#' @param cnv_cache Path to CNV gene coordinates cache file, or NULL for auto-detection
 #'
 #' @return An S3 object of class \code{omicsflow_validation} containing:
 #'   \describe{
@@ -41,7 +42,8 @@
 #'
 #' @export
 validate_inputs <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
-                            metadata = NULL, clinical = NULL, clinical_map = NULL) {
+                            metadata = NULL, clinical = NULL, clinical_map = NULL,
+                            cnv_cache = NULL) {
   # validate_metadata_schema() is now a package-internal function in
 
   # R/utils_metadata.R — no source() call needed.
@@ -102,6 +104,26 @@ validate_inputs <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
   check_modality("RNA-seq matrix", rna, "RNA")
   check_modality("Methylation matrix", meth, "Methylation")
   check_modality("CNV data", cnv, "CNV")
+  
+  if (!is.null(cnv)) {
+    if (is.null(cnv_cache)) {
+      # Try to auto-resolve using project path logic
+      try({
+        candidate_cache <- omicsflow_path("configs", "gene_coordinates.rds")
+        candidate_cache2 <- omicsflow_path("realistic_cache.rds")
+        if (file.exists(candidate_cache)) {
+          cnv_cache <- candidate_cache
+        } else if (file.exists(candidate_cache2)) {
+          cnv_cache <- candidate_cache2
+        }
+      }, silent = TRUE)
+    }
+    if (is.null(cnv_cache) || !file.exists(cnv_cache)) {
+      log_fail("CNV enabled but no valid cache available. Please provide 'cnv_cache' or run 'generate_cnv_cache()'.")
+    } else {
+      log_ok(sprintf("CNV cache resolved: %s", cnv_cache))
+    }
+  }
   check_modality("SNV data", snv, "SNV")
   
   check_exists("Metadata CSV", metadata)

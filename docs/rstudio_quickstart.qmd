@@ -157,6 +157,7 @@ validation <- validate_inputs(
     rna = "data/mycohort/rna.rds",
     meth = "data/mycohort/meth.rds",
     metadata = "templates/sample_metadata.csv"
+    # cnv_cache = "my_gene_coords.rds" # Required if CNV is provided
 )
 ```
 
@@ -191,8 +192,13 @@ results <- omicsflow(
     clinical     = "templates/custom_clinical_template.tsv",
     clinical_map = "templates/clinical_map.json",
     outdir       = "results/myrun"
+    # cache      = "my_gene_coords.rds" # Optional: Custom Ensembl hg38 cache for CNV
 )
 ```
+
+::: {.callout-note title="CNV Preprocessing & Cache"}
+If you include CNV data (`cnv = "cnv.rds"`), the pipeline requires an Ensembl gene coordinates cache (`cache`) to map segments to genes. Because querying Ensembl dynamically can take several minutes and is prone to network timeouts, OmicsFlow uses a bundled default cache automatically. You can download an up-to-date hg38 cache for production use by running `generate_cnv_cache("my_gene_coords.rds")` and passing it explicitly.
+:::
 
 ::: {.expected-output}
 <div class="expected-output-title">

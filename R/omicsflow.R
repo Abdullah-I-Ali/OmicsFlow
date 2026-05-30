@@ -94,10 +94,27 @@ omicsflow <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
   clinical_map <- safe_norm(clinical_map)
   outdir <- normalizePath(outdir, mustWork = FALSE)
   
+  # Default cache logic for CNV:
+  if (is.null(cache) && !is.null(cnv)) {
+    try({
+      candidate_cache <- omicsflow_path("configs", "gene_coordinates.rds")
+      candidate_cache2 <- omicsflow_path("realistic_cache.rds")
+      if (file.exists(candidate_cache)) {
+        cache <- candidate_cache
+      } else if (file.exists(candidate_cache2)) {
+        cache <- candidate_cache2
+      }
+    }, silent = TRUE)
+    if (!is.null(cache) && verbose) {
+      msg_info(sprintf("Using auto-resolved CNV cache: %s", cache))
+    }
+  }
+
   # Step 1: Pre-flight Validation
   val_res <- validate_inputs(
     rna = rna, meth = meth, cnv = cnv, snv = snv,
-    metadata = metadata, clinical = clinical, clinical_map = clinical_map
+    metadata = metadata, clinical = clinical, clinical_map = clinical_map,
+    cnv_cache = cache
   )
   
   if (!val_res$valid) {
@@ -112,17 +129,7 @@ omicsflow <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
     stop("clusterProfiler is required. Run install_omicsflow_dependencies().")
   }
   
-  # Default cache logic:
-  if (is.null(cache)) {
-    if (file.exists(omicsflow_path("configs", "gene_coordinates.rds"))) {
-      cache <- omicsflow_path("configs", "gene_coordinates.rds")
-      if (verbose) msg_info(sprintf("Using default CNV cache: %s", cache))
-    } else if (file.exists(omicsflow_path("realistic_cache.rds"))) {
-      cache <- omicsflow_path("realistic_cache.rds")
-      if (verbose) msg_info(sprintf("Using default CNV cache: %s", cache))
-    }
-  }
-  
+
   # Setup directory structure matching pipeline outputs
   dirs <- list(
     rna     = file.path(outdir, "output_rna"),
@@ -211,9 +218,7 @@ omicsflow <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
   
   # --- 3. CNV Preprocessing ---
   if (!is.null(cnv)) {
-    if (is.null(cache) || !file.exists(cache)) {
-      stop("CNV cache file is required for CNV preprocessing. Please provide a valid path to 'cache'.")
-    }
+    # Early validation already ensured cache exists
     cmd_cnv <- paste(
       "Rscript", shQuote(omicsflow_path("modules", "cnv", "preprocess_cnv.R")),
       sprintf("--input %s", shQuote(cnv)),

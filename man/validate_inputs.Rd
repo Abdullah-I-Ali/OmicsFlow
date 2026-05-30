@@ -11,7 +11,8 @@ validate_inputs(
   snv = NULL,
   metadata = NULL,
   clinical = NULL,
-  clinical_map = NULL
+  clinical_map = NULL,
+  cnv_cache = NULL
 )
 }
 \arguments{
@@ -28,6 +29,8 @@ validate_inputs(
 \item{clinical}{Path to clinical TSV/CSV file, or NULL}
 
 \item{clinical_map}{Path to clinical mapping JSON file, or NULL}
+
+\item{cnv_cache}{Path to CNV gene coordinates cache file, or NULL for auto-detection}
 }
 \value{
 An S3 object of class \code{omicsflow_validation} containing:

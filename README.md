@@ -138,6 +138,7 @@ omicsflow(
   clinical = "results/templates/custom_clinical_template.tsv",
   clinical_map = "results/templates/clinical_map.json",
   outdir = "results/myrun"
+  # cache = "results/my_cnv_cache.rds" # Optional: provide a custom CNV cache
 )
 ```
 
@@ -185,6 +186,7 @@ To run OmicsFlow on a custom cohort, compile the following input files:
 | `rna.rds` | Raw RNA-seq count matrix. | `.rds` / `.csv` |
 | `meth.rds` | DNA methylation Beta-values matrix. | `.rds` / `.csv` |
 | `cnv.rds` | Copy number segment definitions or gene-mapped score table. | `.rds` / `.csv` |
+| `gene_coords.rds` | Ensembl CNV cache. Automatically bundled, or regenerated via `generate_cnv_cache()`. | `.rds` |
 | `snv.rds` | Somatic mutation variant list or precompiled binary occurrence matrix. | `.rds` / `.csv` |
 | `sample_metadata.csv` | Universal cross-modality sample-to-patient mapping. | `.csv` |
 | `custom_clinical.tsv` | Clinical survival timeline, vital statuses, and covariates. | `.tsv` / `.csv` |
@@ -213,6 +215,18 @@ Ensure input matrices align with these structural specifications:
 
 ### Somatic Mutations (`snv.rds`)
 *   **Structure:** Tabular format mapping `Hugo_Symbol`, `Tumor_Sample_Barcode`, `Variant_Classification` (or precompiled binary $0/1$ gene-by-sample mutation grids).
+
+---
+
+## 8. CNV Cache Generation
+
+The CNV preprocessing module requires an Ensembl gene coordinate cache to map genomic segments to genes. Because querying the Ensembl `biomaRt` API takes 1-3 minutes and is prone to network timeouts, **OmicsFlow comes bundled with a default fallback cache**.
+
+If you wish to download a real, up-to-date hg38 gene coordinate cache for production use:
+```r
+generate_cnv_cache("my_gene_coords_hg38.rds")
+```
+You can then pass this cache explicitely: `omicsflow(..., cache = "my_gene_coords_hg38.rds")` or `validate_inputs(..., cnv_cache = "my_gene_coords_hg38.rds")`. If no cache is provided, OmicsFlow will automatically use the bundled default.
 
 ---
 
