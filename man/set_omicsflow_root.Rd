@@ -7,17 +7,23 @@
 set_omicsflow_root(path)
 }
 \arguments{
-\item{path}{Absolute or relative path to the OmicsFlow repository root.
-Must contain \code{modules/} and \code{reports/} subdirectories.}
+\item{path}{Absolute or relative path to a directory containing a
+\code{modules/} subdirectory.}
 }
 \value{
 The normalized path (invisibly).
 }
 \description{
-Explicitly configure the path to the OmicsFlow repository root where
+Explicitly configure the path to the OmicsFlow resource root where
 scientific modules (\code{modules/}), reports (\code{reports/}), and
-configuration files reside. This is useful when calling OmicsFlow functions
-from a working directory other than the repository root.
+configuration files reside. This is primarily useful for developers
+working directly in the OmicsFlow repository or users who need to
+override the default resolution.
+}
+\details{
+For most users who install OmicsFlow via \code{install_github()}, this
+function is \strong{not needed} — resource paths are resolved automatically
+from the installed package.
 }
 \examples{
 \dontrun{

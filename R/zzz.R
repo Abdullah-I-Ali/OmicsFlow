@@ -11,6 +11,6 @@
 }
 
 .onLoad <- function(libname, pkgname) {
-  # Initialize the root cache as NULL (lazy detection)
+  # Initialize the root cache as NULL (lazy detection via system.file())
   .omicsflow_env$root <- NULL
 }

@@ -2,17 +2,17 @@
 % Please edit documentation in R/project_root.R
 \name{omicsflow_path}
 \alias{omicsflow_path}
-\title{Resolve a path relative to the OmicsFlow project root}
+\title{Resolve a path relative to the OmicsFlow resource root}
 \usage{
 omicsflow_path(...)
 }
 \arguments{
-\item{...}{Path components to join after the project root}
+\item{...}{Path components to join after the root}
 }
 \value{
 Absolute path
 }
 \description{
-Resolve a path relative to the OmicsFlow project root
+Resolve a path relative to the OmicsFlow resource root
 }
 \keyword{internal}

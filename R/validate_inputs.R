@@ -42,16 +42,9 @@
 #' @export
 validate_inputs <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
                             metadata = NULL, clinical = NULL, clinical_map = NULL) {
-  # Source the pipeline metadata utils using project root resolution
-  metadata_utils_path <- omicsflow_path("modules", "utils_metadata.R")
-  if (file.exists(metadata_utils_path)) {
-    source(metadata_utils_path, local = TRUE)
-  } else {
-    stop(
-      "Could not locate modules/utils_metadata.R at: ", metadata_utils_path,
-      "\nHint: call set_omicsflow_root('/path/to/OmicsFlow') to set the project root."
-    )
-  }
+  # validate_metadata_schema() is now a package-internal function in
+
+  # R/utils_metadata.R — no source() call needed.
   
   start_time <- Sys.time()
   valid <- TRUE

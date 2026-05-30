@@ -10,11 +10,6 @@ omicsflow_project_root()
 Absolute path to the OmicsFlow project root.
 }
 \description{
-Internal function that returns the project root, using (in order):
-\enumerate{
-  \item An explicitly set root via \code{\link{set_omicsflow_root}}
-  \item Auto-detection by walking upward from the current working directory
-  \item Fallback to the current working directory (with a warning)
-}
+Resolve the OmicsFlow project root directory
 }
 \keyword{internal}
