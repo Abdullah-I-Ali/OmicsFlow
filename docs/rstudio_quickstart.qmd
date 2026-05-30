@@ -19,7 +19,7 @@ format:
   OmicsFlow orchestrates multi-omics alignment, factor integration via MOFA+, machine learning survival modeling, and pathway enrichment under a highly cohesive, programmatic R interface.
 </p>
 <div class="badge-container">
-  <span class="badge-item primary">R Package v2.0.0-beta</span>
+  <span class="badge-item primary">R Package v1.0.0</span>
   <span class="badge-item accent">Nextflow Engine</span>
   <span class="badge-item">MOFA+ Integration</span>
   <span class="badge-item">ML Survival Models</span>
@@ -80,10 +80,10 @@ if (!requireNamespace("remotes", quietly = TRUE)) {
     install.packages("remotes")
 }
 
-# Install OmicsFlow from the release usability branch
+# Install OmicsFlow from the release branch
 remotes::install_github(
     "Abdullah-I-Ali/OmicsFlow",
-    ref = "feature/omicsflow-package"
+    ref = "main"
 )
 ```
 :::
@@ -119,6 +119,7 @@ The dependency manager will actively inspect your environment and skip any CRAN 
 
 OmicsFlow uses an elegant metadata mapping system that eliminates the need to manually align IDs or rename matrix columns.
 
+**Native SummarizedExperiment Support:** OmicsFlow natively supports `.rds` files containing `SummarizedExperiment` objects (such as TCGAbiolinks outputs). It will automatically extract assays and colData.
 **Supported Input Formats:** `.rds` (recommended), `.csv`, `.tsv`, `.txt`
 
 Generate template configuration structures based on your input matrices:
@@ -133,24 +134,11 @@ generate_metadata_templates(
 )
 ```
 
-::: {.expected-output}
-<div class="expected-output-title">
-  <i class="bi bi-folder-check"></i> Expected Generated Files
-</div>
-```text
-templates/
-├── sample_metadata.csv           # Maps raw sample IDs to unique patient IDs
-├── custom_clinical_template.tsv   # Empty clinical table (for survival & covariates)
-├── clinical_map.json              # Schema mapping local headers to survival variables
-└── validation_report.txt          # Summary of data files, dimensions, and types
-```
+::: {.callout-note title="Missing Metadata & TCGA Fallback"}
+If you are analyzing TCGA data directly or do not wish to perform batch correction, **you do not need to populate the templates**. OmicsFlow will automatically detect TCGA barcodes (`TCGA-XX-XXXX...`), extract batches, and map IDs without explicit templates. If barcodes are custom, it assigns generic batches safely.
 :::
 
-::: {.callout-important title="Required Action"}
-Review and manually populate `sample_metadata.csv` and `custom_clinical_template.tsv` to ensure all patient associations and survival outcomes are correctly aligned before running the analysis.
 :::
-:::
-
 ::: {.workflow-step}
 ## <span class="step-num">5</span> Validate Inputs
 
@@ -161,27 +149,8 @@ validation <- validate_inputs(
     rna = "data/mycohort/rna.rds",
     meth = "data/mycohort/meth.rds",
     metadata = "templates/sample_metadata.csv"
-    # cnv_cache = "my_gene_coords.rds" # Required if CNV is provided
-    # meth_cross_react = "my_cross_reactive_probes.csv" # Optional: Custom Methylation cross-reactive probes
 )
 ```
-
-::: {.expected-output}
-<div class="expected-output-title">
-  <i class="bi bi-braces"></i> Validation Structured S3 Object Output
-</div>
-```r
-# Returned S3 Object (class: omicsflow_validation)
-list(
-    status              = "success",
-    valid               = TRUE,
-    detected_modalities = c("rna", "meth"),
-    skipped_modalities  = c("cnv", "snv"),
-    messages            = "All checks completed. File links and sample mappings are aligned.",
-    warnings            = character(0)
-)
-```
-:::
 :::
 
 ::: {.workflow-step}
@@ -197,16 +166,11 @@ results <- omicsflow(
     clinical     = "templates/custom_clinical_template.tsv",
     clinical_map = "templates/clinical_map.json",
     outdir       = "results/myrun"
-    # cnv_cache  = "my_gene_coords.rds" # Optional: Custom Ensembl hg38 cache for CNV
-    # meth_cross_react = "my_cross_react.csv" # Optional: Custom Methylation cross-reactive probes
 )
 ```
 
-::: {.callout-note title="Offline Resources (CNV Cache & Methylation Probes)"}
-OmicsFlow comes bundled with default resources to ensure the pipeline runs offline without internet dependencies:
-
-- **Methylation Cross-Reactive Probes:** Automatically filtered using a bundled version of the Chen et al. (2013) list. You can override it via `meth_cross_react`.
-- **CNV Ensembl Cache:** If CNV data is provided, an Ensembl gene coordinates cache is required. OmicsFlow uses a bundled default automatically. You can download a fresh hg38 cache via `generate_cnv_cache("my_gene_coords.rds")` and pass it explicitly.
+::: {.callout-tip title="Clinical Auto-Detection"}
+You can simply provide your custom clinical TSV/CSV and **omit** `clinical_map.json`. OmicsFlow will employ heuristic natural language detection to map local column headers containing keywords like `age`, `survival`, `os_time`, `gender`, or `stage` automatically!
 :::
 
 ::: {.expected-output}
@@ -276,6 +240,15 @@ The integration engine requires at least two modalities to compute shared latent
 * **Transcriptomics & Genomics:** `rna` + `snv`
 * **Epigenomics, CNV, & Genomics:** `meth` + `cnv` + `snv`
 * **Full Multi-Omics:** `rna` + `meth` + `cnv` + `snv`
+
+---
+
+## Validating Your Installation
+
+OmicsFlow bundles a complete publication-grade validation suite to verify exactly reproducible outputs on your system. Run this to ensure all packages and algorithms compute correctly:
+```bash
+Rscript tests/run_publication_validation.R
+```
 
 ---
 

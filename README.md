@@ -17,8 +17,8 @@ OmicsFlow bridges the gap between raw, heterogeneous biological data matrices an
 
 ## 2. Key Features
 
-- **Universal Metadata Abstraction Layer:** Complete decoupled support for external cohorts. Supply a custom sample mapping file to seamlessly route mismatched samples without renaming raw inputs.
-- **Realistic Cohort Validation System:** Generates highly realistic oncology cohorts complete with center batch effects and three distinct biological subtypes to test mathematical and structural pipeline integrity.
+- **Universal Metadata & TCGA Fallback:** Complete decoupled support for external cohorts. Supply a custom sample mapping file to seamlessly route mismatched samples, or omit metadata entirely to trigger native TCGA barcode parsing and auto-detection.
+- **Reproducibility & Validation:** Fully deterministic executions via strict seed control. Backed by an automated publication validation suite proving 100% identical outputs and missing-modality robustness.
 - **Multi-Omics Integration (MOFA+):** Compresses high-dimensional transcriptomic, epigenomic, copy number, and somatic mutation data into low-dimensional shared factor landscapes.
 - **Survival Modeling & Biomarker Extraction:** Supports LASSO Cox Regression, Random Survival Forests, and XGBoost models to predict clinical outcomes from multi-omics components.
 - **Automated HTML Reporting:** Quarto-driven compile engine generates a unified, interactive dashboard featuring Lightbox visualizations, Kaplan-Meier curves, and feature importance matrices.
@@ -97,19 +97,18 @@ Click below to open the fully interactive, browser-based HTML onboarding guide:
 
 ---
 
-
 ### Command Reference
 
 The R package provides a highly usable abstraction layer to interact with the scientific pipeline directly from RStudio or any R environment. The core package is lightweight, keeping heavy analytical dependencies dynamically installed when requested.
 
 **Input Data Formats**:
-*   **Recommended:** `.rds` (Serialized R objects or SummarizedExperiment)
+*   **Recommended:** `.rds` (Native Support for `SummarizedExperiment` or Matrix objects)
 *   **Supported:** `.csv`, `.tsv`, `.txt`
 
 ```r
 # Install the lightweight orchestration layer
 install.packages("remotes")
-remotes::install_github("Abdullah-I-Ali/OmicsFlow", ref = "feature/rstudio-usability")
+remotes::install_github("Abdullah-I-Ali/OmicsFlow", ref = "main")
 
 library(OmicsFlow)
 
@@ -123,9 +122,7 @@ generate_metadata_templates(
   output_dir = "results/templates"
 )
 
-# 2. (Optional) Review and edit the generated templates
-
-# 3. Validate input integrity
+# 2. Validate input integrity
 validate_inputs(
   rna = "data/mycohort/rna.rds",
   meth = "data/mycohort/meth.rds",
@@ -134,7 +131,7 @@ validate_inputs(
   clinical_map = "results/templates/clinical_map.json"
 )
 
-# 4. Execute the full pipeline
+# 3. Execute the full pipeline
 omicsflow(
   rna = "data/mycohort/rna.rds",
   meth = "data/mycohort/meth.rds",
@@ -142,8 +139,6 @@ omicsflow(
   clinical = "results/templates/custom_clinical_template.tsv",
   clinical_map = "results/templates/clinical_map.json",
   outdir = "results/myrun"
-  # cnv_cache = "results/my_cnv_cache.rds" # Optional: provide a custom CNV cache
-  # meth_cross_react = "results/my_cross_react.csv" # Optional: Custom Methylation cross-reactive probes
 )
 ```
 
@@ -167,7 +162,7 @@ cd OmicsFlow
 # Pull or build execution containers
 docker build -t omicsflow:latest .
 
-# Run the pipeline
+# Run the pipeline reproducibly
 nextflow run main.nf \
   --rna data/mycohort/rna.rds \
   --meth data/mycohort/meth.rds \
@@ -177,6 +172,7 @@ nextflow run main.nf \
   --clinical data/mycohort/custom_clinical.tsv \
   --clinical_map data/mycohort/clinical_map.json \
   --outdir results/myrun \
+  --seed 42 \
   -profile docker
 ```
 
@@ -188,8 +184,8 @@ To run OmicsFlow on a custom cohort, compile the following input files:
 
 | File | Description | Formats |
 |---|---|---|
-| `rna.rds` | Raw RNA-seq count matrix. | `.rds` / `.csv` |
-| `meth.rds` | DNA methylation Beta-values matrix. | `.rds` / `.csv` |
+| `rna.rds` | Raw RNA-seq count matrix or `SummarizedExperiment`. | `.rds` / `.csv` |
+| `meth.rds` | DNA methylation Beta-values matrix or `SummarizedExperiment`. | `.rds` / `.csv` |
 | `cnv.rds` | Copy number segment definitions or gene-mapped score table. | `.rds` / `.csv` |
 | `gene_coords.rds` | Ensembl CNV cache. Automatically bundled, or regenerated via `generate_cnv_cache()`. | `.rds` |
 | `snv.rds` | Somatic mutation variant list or precompiled binary occurrence matrix. | `.rds` / `.csv` |
@@ -199,27 +195,20 @@ To run OmicsFlow on a custom cohort, compile the following input files:
 
 ---
 
-## 7. Input Format Specifications
+## 7. Metadata, Clinical Auto-Detection, & TCGA Fallback
 
-Ensure input matrices align with these structural specifications:
+OmicsFlow uses an elegant tiered abstraction layer for handling clinical data and metadata mapping.
 
-### RNA-seq (`rna.rds`)
-*   **Structure:** Matrix of dimensions $G$ (genes) $\times$ $S$ (RNA samples).
-*   **Rownames:** Ensembl Gene IDs or Hugo Symbols (Feature IDs).
-*   **Colnames:** Unique RNA sample IDs matching `sample_metadata.csv`.
-*   **Values:** Raw, untransformed counts.
+### Tier 1: Explicit Mapping (Recommended for Custom Cohorts)
+You supply `sample_metadata.csv` (mapping matrix samples to unique patients) and `clinical_map.json` (translating your local clinical headers to OmicsFlow native variables like `os_time`, `age`, `gender`).
 
-### DNA Methylation (`meth.rds`)
-*   **Structure:** Matrix of dimensions $P$ (probes) $\times$ $S$ (Methylation samples).
-*   **Rownames:** Illumina Infinium probe IDs (cg-numbers).
-*   **Colnames:** Unique methylation sample IDs matching `sample_metadata.csv`.
-*   **Values:** Beta-values ($0.0 \le \beta \le 1.0$) or M-values.
+### Tier 2: Auto-Detection
+If you omit the `clinical_map.json` but provide a `custom_clinical.tsv`, OmicsFlow runs an NLP-like column detector to automatically map columns representing Survival Time, Event Status, Age, Gender, and Stage.
 
-### Copy Number Variation (`cnv.rds`)
-*   **Structure:** Standard segment data frames containing `Sample`, `Chromosome`, `Start`, `End`, `Num_Probes`, and `Segment_Mean` columns. Alternatively, pre-mapped gene-level score matrices.
-
-### Somatic Mutations (`snv.rds`)
-*   **Structure:** Tabular format mapping `Hugo_Symbol`, `Tumor_Sample_Barcode`, `Variant_Classification` (or precompiled binary $0/1$ gene-by-sample mutation grids).
+### Tier 3: TCGA Fallback (Generic Support)
+If you **omit metadata and clinical tables entirely**, OmicsFlow relies on native parsing:
+- If column names match TCGA formats (`TCGA-XX-XXXX-01...`), it extracts patient IDs, tumor types, and plate batches automatically.
+- If column names are custom (`PT-1234`), it assigns a generic batch ("batch1") and retains all samples safely, guaranteeing that preprocessing executes gracefully without manual intervention.
 
 ---
 
@@ -244,38 +233,21 @@ You can override this by explicitly passing your own list:
 
 ---
 
-## 10. Metadata & Clinical Mapping Examples
+## 10. Reproducibility & Publication Validation
 
-OmicsFlow uses an abstraction layer to decouple pipeline execution from sample-naming conventions. This allows you to process mismatched omics matrices without manual string slicing.
+OmicsFlow enforces strict random number generation (RNG) control to ensure that latent features, ML survival estimators, and batch correction outputs are publication-grade. 
 
-### Metadata Schema Example (`sample_metadata.csv`)
-```csv
-sample_id,patient_id,sample_class,batch,center
-S_RNA_001,P_001,Tumor,B1,Center_Alpha
-S_METH_001,P_001,Tumor,B2,Center_Alpha
-S_RNA_002,P_002,Tumor,B1,Center_Beta
-S_METH_002,P_002,Tumor,B1,Center_Beta
+Passing `--seed` (or supplying `seed = 42` to your execution wrapper) guarantees 100% reproducible outputs down to identical matrix MD5 hashes.
+
+**Validate your installation:**
+You can run the fully automated publication validation suite to test identical-seed reproducibility, cross-seed stability, missing-modality robustness, and external TCGA performance on your system:
+```bash
+Rscript tests/run_publication_validation.R
 ```
-*   `sample_id`: Matches the column names of your respective omics data files.
-*   `patient_id`: The patient identifier used to match and join different omics types.
-*   `sample_class`: Phenotypic category (e.g., Tumor, Normal).
-*   `batch` & `center`: Variables for batch-correction diagnostics.
-
-### Clinical Mapping Schema (`clinical_map.json`)
-```json
-{
-  "patient_id": "patient_barcode",
-  "os_time": "overall_survival_days",
-  "os_event": "vital_status_event",
-  "age": "age_at_diagnosis",
-  "gender": "biological_sex"
-}
-```
-*The clinical mapping schema translates local column headers in your clinical TSV into unified variables utilized natively inside the survival models.*
 
 ---
 
-## 9. Expected Outputs
+## 11. Expected Outputs
 
 Upon successful execution, all analytical outputs are systematically organized:
 
@@ -294,7 +266,7 @@ results/myrun/
 
 ---
 
-## 10. Realistic Validation Framework
+## 12. Realistic Validation Framework
 
 The realistic validation framework operates as a ground-truth simulator to evaluate mathematical stability and recovery. You can run it via `Rscript run_realistic_validation.R`.
 
@@ -306,36 +278,36 @@ The synthetic engine constructs $150-200$ patients divided across three biologic
 
 ---
 
-## 11. Runtime, Resource, & Scenario Specifications
+## 13. Runtime, Resource, & Scenario Specifications
 
 ### Resource Expectations
 - **Minimum:** 4 Cores, 8 GB RAM.
 - **Recommended:** 8 Cores, 16 GB+ RAM.
-- **Expected Runtime (Standard Demo):** ~5–12 minutes depending on hardware.
+- **Expected Runtime:** Highly optimized. A standard 4-modality cohort ($n=200$) processes in under **2-3 minutes** on modern hardware.
 
 ### Scope & Constraints
 - **Human-Focused:** Pathway databases, gene coordinate mappings, and annotation libraries utilize human definitions (hg38/GRCh38).
 - **Illumina Mappings:** Preprocessing handles standard Illumina HumanMethylation450k and MethylationEPIC platforms.
-- **Academic Validation:** Synthetic execution is for software and logic validation only. It is **not** a clinical diagnostic tool and must not be used for patient decision-making.
 
 ---
 
-## 12. Common Pitfalls & Troubleshooting
+## 14. Common Pitfalls & Troubleshooting
 
 - **Mismatched Sample IDs:** If the sample IDs in your `rna.rds` colnames do not precisely match the column entries in `sample_metadata.csv`, the preprocessing module will evaluate counts to `NULL` or drop the samples. Ensure case sensitivity and matching.
-- **Missing Clinical Mapping Keys:** If R fails with variable selection errors, check that `clinical_map.json` maps *all* required fields (`patient_id`, `os_time`, `os_event`) to valid clinical TSV column headers.
+- **Missing Clinical Mapping Keys:** If R fails with variable selection errors, check that `clinical_map.json` maps *all* required fields (`patient_id`, `os_time`, `os_event`) to valid clinical TSV column headers. Alternatively, delete the JSON to rely on OmicsFlow's auto-detect logic.
 - **Missing Quarto executable:** If the HTML report fails to compile, verify Quarto is correctly installed by running `quarto --version` in your terminal. Ensure the executable is in your environment paths.
 - **Unsupported Methylation Arrays:** Probes not matching standard EPIC or 450k cg-prefixes may be dropped by probe filtering routines. Ensure input coordinates are aligned to mapped human probes.
 
 ---
 
-## 13. Repository Structure
+## 15. Repository Structure
 
 ```text
 OmicsFlow/
 ├── modules/                 # Modular preprocessing, ML, integration, and enrichment engines
+├── R/                       # Core orchestration wrappers and metadata ingestion logic
 ├── reports/                 # Quarto reporting templates and final HTML compilations
-├── tests/                   # Regression and unit test cases
+├── tests/                   # Publication-grade validation and robustness suite
 ├── data/                    # Storage for raw reference databases and synthetic cohorts
 ├── results/                 # Pipeline output destination directory
 ├── configs/                 # Gene annotation coordinates and array cross-reactive lists
@@ -346,15 +318,7 @@ OmicsFlow/
 
 ---
 
-## 14. Roadmap
-
-- [ ] **Pan-Cancer Benchmarking:** High-throughput validation across classic TCGA datasets.
-- [ ] **Independent GEO Validation:** Support for microarrays and single-omics validation tests.
-- [ ] **HPC & Cloud Deployment:** Configuration profiles for AWS Batch, SLURM, and Nextflow Tower.
-
----
-
-## 15. Citation & Authors
+## 16. Citation & Authors
 
 **OmicsFlow: A Modular Pipeline for Integrated Multi-Omics and Survival Forecasting**  
 **Author:** Abdullah Ibrahim Ali  
