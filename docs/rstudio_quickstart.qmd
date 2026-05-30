@@ -119,12 +119,16 @@ The dependency manager will actively inspect your environment and skip any CRAN 
 
 OmicsFlow uses an elegant metadata mapping system that eliminates the need to manually align IDs or rename matrix columns.
 
+**Supported Input Formats:** `.rds` (recommended), `.csv`, `.tsv`, `.txt`
+
 Generate template configuration structures based on your input matrices:
 
 ```r
 generate_metadata_templates(
-    rna = "data/mycohort/rna.rds",
-    meth = "data/mycohort/meth.rds",
+    rna      = "data/mycohort/rna_counts.rds",
+    meth     = "data/mycohort/meth_beta.csv",
+    cnv      = "data/mycohort/cnv_segments.tsv",
+    snv      = "data/mycohort/snv_maf.txt",
     output_dir = "templates"
 )
 ```
@@ -187,8 +191,8 @@ Launch the entire pipeline — including normalization, multi-omics factor align
 
 ```r
 results <- omicsflow(
-    rna          = "data/mycohort/rna.rds",
-    meth         = "data/mycohort/meth.rds",
+    rna          = "data/mycohort/rna_counts.rds",
+    meth         = "data/mycohort/meth_beta.csv",
     metadata     = "templates/sample_metadata.csv",
     clinical     = "templates/custom_clinical_template.tsv",
     clinical_map = "templates/clinical_map.json",

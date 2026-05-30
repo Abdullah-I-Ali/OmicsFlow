@@ -17,13 +17,13 @@ validate_inputs(
 )
 }
 \arguments{
-\item{rna}{Path to RNA-seq matrix file (.rds or .csv), or NULL}
+\item{rna}{Path to RNA-seq matrix file (.rds, .csv, .tsv, .txt), or NULL}
 
-\item{meth}{Path to DNA methylation matrix file (.rds or .csv), or NULL}
+\item{meth}{Path to DNA methylation matrix file (.rds, .csv, .tsv, .txt), or NULL}
 
-\item{cnv}{Path to CNV data file (.rds, .csv, or .tsv), or NULL}
+\item{cnv}{Path to CNV data file (.rds, .csv, .tsv, .txt), or NULL}
 
-\item{snv}{Path to SNV data file (.rds, .csv, or .tsv), or NULL}
+\item{snv}{Path to SNV data file (.rds, .csv, .tsv, .txt), or NULL}
 
 \item{metadata}{Path to sample metadata CSV file (required for execution)}
 

@@ -102,6 +102,10 @@ Click below to open the fully interactive, browser-based HTML onboarding guide:
 
 The R package provides a highly usable abstraction layer to interact with the scientific pipeline directly from RStudio or any R environment. The core package is lightweight, keeping heavy analytical dependencies dynamically installed when requested.
 
+**Input Data Formats**:
+*   **Recommended:** `.rds` (Serialized R objects or SummarizedExperiment)
+*   **Supported:** `.csv`, `.tsv`, `.txt`
+
 ```r
 # Install the lightweight orchestration layer
 install.packages("remotes")

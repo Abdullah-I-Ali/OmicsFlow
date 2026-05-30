@@ -51,5 +51,29 @@ build_metadata_table <- function(sample_ids_list, patient_ids_df = NULL) {
     stringsAsFactors = FALSE
   )
   
+  # TCGA Barcode Inference
+  # A standard TCGA barcode is 28 characters (e.g. TCGA-CC-A7IJ-01A-41D-A915-36)
+  is_tcga <- startsWith(as.character(df_meta$sample_id), "TCGA-") & nchar(as.character(df_meta$sample_id)) >= 28
+  
+  if (any(is_tcga)) {
+    tcga_samples <- as.character(df_meta$sample_id[is_tcga])
+    
+    # Extract tissue type code (positions 14-15)
+    tissue_codes <- substr(tcga_samples, 14, 15)
+    class_map <- ifelse(tissue_codes == "01", "Primary Tumor",
+                 ifelse(tissue_codes == "11", "Solid Tissue Normal",
+                 ifelse(tissue_codes == "02", "Recurrent Tumor",
+                 ifelse(tissue_codes == "06", "Metastatic", "Tumor"))))
+    df_meta$sample_class[is_tcga] <- class_map
+    
+    # Extract Plate/Batch (positions 22-25)
+    plate_codes <- substr(tcga_samples, 22, 25)
+    df_meta$batch[is_tcga] <- paste0("Plate_", plate_codes)
+    
+    # Extract Center (positions 27-28)
+    center_codes <- substr(tcga_samples, 27, 28)
+    df_meta$center[is_tcga] <- paste0("Center_", center_codes)
+  }
+  
   return(df_meta)
 }

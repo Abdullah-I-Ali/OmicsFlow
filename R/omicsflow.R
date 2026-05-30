@@ -9,10 +9,10 @@
 #' based on the provided subset of omics modalities. At least two modalities are
 #' required for successful execution.
 #'
-#' @param rna Path to RNA-seq matrix file (.rds or .csv), or NULL
-#' @param meth Path to DNA methylation matrix file (.rds or .csv), or NULL
-#' @param cnv Path to CNV data file (.rds, .csv, or .tsv), or NULL
-#' @param snv Path to SNV data file (.rds, .csv, or .tsv), or NULL
+#' @param rna Path to RNA-seq matrix file (.rds, .csv, .tsv, .txt), or NULL
+#' @param meth Path to DNA methylation matrix file (.rds, .csv, .tsv, .txt), or NULL
+#' @param cnv Path to CNV data file (.rds, .csv, .tsv, .txt), or NULL
+#' @param snv Path to SNV data file (.rds, .csv, .tsv, .txt), or NULL
 #' @param metadata Path to sample metadata CSV file
 #' @param clinical Path to clinical TSV/CSV file, or NULL
 #' @param clinical_map Path to clinical mapping JSON file, or NULL

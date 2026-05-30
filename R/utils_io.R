@@ -18,8 +18,10 @@ read_matrix_safe <- function(path) {
       readRDS(path)
     } else if (ext == "csv") {
       read.csv(path, row.names = 1, check.names = FALSE, stringsAsFactors = FALSE)
+    } else if (ext %in% c("tsv", "txt")) {
+      read.delim(path, row.names = 1, check.names = FALSE, stringsAsFactors = FALSE)
     } else {
-      msg_warn(sprintf("Unsupported matrix format: .%s (expected .rds or .csv)", ext))
+      msg_warn(sprintf("Unsupported input format: .%s\nSupported formats:\n- .rds\n- .csv\n- .tsv\n- .txt\n\nRecommended format:\n- .rds", ext))
       NULL
     }
   }, error = function(e) {
@@ -44,8 +46,11 @@ read_table_safe <- function(path) {
       readRDS(path)
     } else if (ext == "csv") {
       read.csv(path, stringsAsFactors = FALSE, check.names = FALSE)
-    } else {
+    } else if (ext %in% c("tsv", "txt")) {
       read.delim(path, stringsAsFactors = FALSE, check.names = FALSE)
+    } else {
+      msg_warn(sprintf("Unsupported input format: .%s\nSupported formats:\n- .rds\n- .csv\n- .tsv\n- .txt\n\nRecommended format:\n- .rds", ext))
+      NULL
     }
   }, error = function(e) {
     msg_warn(sprintf("Failed to read %s: %s", basename(path), e$message))

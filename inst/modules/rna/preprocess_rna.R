@@ -90,11 +90,20 @@ if (!is.null(metadata)) {
 rna_step(1, "Loading RNA-seq Data")
 rna_check_file(args$input, "RNA input")
 
-rna_raw <- readRDS(args$input)
-if (inherits(rna_raw, "SummarizedExperiment")) {
-  rna_counts <- assay(rna_raw)
+ext <- tolower(tools::file_ext(args$input))
+if (ext == "rds") {
+  rna_raw <- readRDS(args$input)
+  if (inherits(rna_raw, "SummarizedExperiment")) {
+    rna_counts <- assay(rna_raw)
+  } else {
+    rna_counts <- as.matrix(rna_raw)
+  }
+} else if (ext == "csv") {
+  rna_counts <- as.matrix(read.csv(args$input, row.names = 1, check.names = FALSE))
+} else if (ext %in% c("tsv", "txt")) {
+  rna_counts <- as.matrix(read.delim(args$input, row.names = 1, check.names = FALSE))
 } else {
-  rna_counts <- as.matrix(rna_raw)
+  stop("Unsupported input format.\n\nSupported formats:\n- .rds\n- .csv\n- .tsv\n- .txt\n\nRecommended format:\n- .rds", call. = FALSE)
 }
 storage.mode(rna_counts) <- "double"
 

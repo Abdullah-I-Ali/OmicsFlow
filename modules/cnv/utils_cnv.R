@@ -69,8 +69,17 @@ load_cnv_data <- function(cnv_file, gene_cache_file) {
     stop("Input CNV file not found: ", cnv_file)
   }
   
-  cnv_raw <- readRDS(cnv_file)
-  cnv_data <- as.data.frame(cnv_raw)
+  ext <- tolower(tools::file_ext(cnv_file))
+  if (ext == "rds") {
+    cnv_raw <- readRDS(cnv_file)
+    cnv_data <- as.data.frame(cnv_raw)
+  } else if (ext == "csv") {
+    cnv_data <- read.csv(cnv_file, stringsAsFactors = FALSE)
+  } else if (ext %in% c("tsv", "txt")) {
+    cnv_data <- read.delim(cnv_file, stringsAsFactors = FALSE)
+  } else {
+    stop("Unsupported input format.\n\nSupported formats:\n- .rds\n- .csv\n- .tsv\n- .txt\n\nRecommended format:\n- .rds", call. = FALSE)
+  }
   
   # Ensure necessary columns are present
   required_cols <- c("Chromosome", "Start", "End", "Num_Probes", "Segment_Mean", "Sample")

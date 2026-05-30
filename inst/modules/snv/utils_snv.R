@@ -64,7 +64,16 @@ load_snv_data <- function(snv_file) {
   if (!file.exists(snv_file)) {
     stop("Input SNV file not found: ", snv_file)
   }
-  snv_raw <- readRDS(snv_file)
+  ext <- tolower(tools::file_ext(snv_file))
+  if (ext == "rds") {
+    snv_raw <- readRDS(snv_file)
+  } else if (ext == "csv") {
+    snv_raw <- read.csv(snv_file, stringsAsFactors = FALSE)
+  } else if (ext %in% c("tsv", "txt")) {
+    snv_raw <- read.delim(snv_file, stringsAsFactors = FALSE)
+  } else {
+    stop("Unsupported input format.\n\nSupported formats:\n- .rds\n- .csv\n- .tsv\n- .txt\n\nRecommended format:\n- .rds", call. = FALSE)
+  }
   return(snv_raw)
 }
 

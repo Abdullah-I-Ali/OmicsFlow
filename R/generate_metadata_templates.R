@@ -9,10 +9,10 @@
 #' reviewed and edited before pipeline execution. Accepts any subset of
 #' omics modalities — no modality is mandatory.
 #'
-#' @param rna Path to RNA-seq matrix file (.rds or .csv), or NULL
-#' @param meth Path to DNA methylation matrix file (.rds or .csv), or NULL
-#' @param cnv Path to CNV data file (.rds, .csv, or .tsv), or NULL
-#' @param snv Path to SNV data file (.rds, .csv, or .tsv), or NULL
+#' @param rna Path to RNA-seq matrix file (.rds, .csv, .tsv, .txt), or NULL
+#' @param meth Path to DNA methylation matrix file (.rds, .csv, .tsv, .txt), or NULL
+#' @param cnv Path to CNV data file (.rds, .csv, .tsv, .txt), or NULL
+#' @param snv Path to SNV data file (.rds, .csv, .tsv, .txt), or NULL
 #' @param clinical Path to clinical TSV/CSV file (optional). If NULL, an
 #'   empty clinical template and default column mapping are generated.
 #' @param output_dir Path to output templates directory (created if absent)

@@ -90,8 +90,17 @@ if (!is.null(metadata)) {
 meth_step(1, "Loading & Quality-Aware Deduplication")
 meth_check_file(args$input, "Methylation input")
 
-met_beta <- readRDS(args$input)
-if (inherits(met_beta, "SummarizedExperiment")) met_beta <- assay(met_beta)
+ext <- tolower(tools::file_ext(args$input))
+if (ext == "rds") {
+  met_beta <- readRDS(args$input)
+  if (inherits(met_beta, "SummarizedExperiment")) met_beta <- assay(met_beta)
+} else if (ext == "csv") {
+  met_beta <- as.matrix(read.csv(args$input, row.names = 1, check.names = FALSE))
+} else if (ext %in% c("tsv", "txt")) {
+  met_beta <- as.matrix(read.delim(args$input, row.names = 1, check.names = FALSE))
+} else {
+  stop("Unsupported input format.\n\nSupported formats:\n- .rds\n- .csv\n- .tsv\n- .txt\n\nRecommended format:\n- .rds", call. = FALSE)
+}
 storage.mode(met_beta) <- "double"
 
 meth_msg(sprintf("Raw matrix: %s probes x %s samples",
@@ -321,8 +330,14 @@ meth_step(5, "Batch Correction (ComBat)")
 
 # Recover full barcodes for batch extraction
 # Need to redo deduplication to find original barcodes
-met_temp <- readRDS(args$input)
-if (inherits(met_temp, "SummarizedExperiment")) met_temp <- assay(met_temp)
+if (ext == "rds") {
+  met_temp <- readRDS(args$input)
+  if (inherits(met_temp, "SummarizedExperiment")) met_temp <- assay(met_temp)
+} else if (ext == "csv") {
+  met_temp <- as.matrix(read.csv(args$input, row.names = 1, check.names = FALSE))
+} else if (ext %in% c("tsv", "txt")) {
+  met_temp <- as.matrix(read.delim(args$input, row.names = 1, check.names = FALSE))
+}
 
 if (!is.null(metadata)) {
   common_temp <- intersect(colnames(met_temp), metadata$sample_id)
