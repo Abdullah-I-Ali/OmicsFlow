@@ -84,13 +84,20 @@ load_clinical_data <- function(file, column_map = NULL, metadata = NULL) {
   }
   
   # Read clinical data
-  # Auto-detect separator
   ext <- tolower(tools::file_ext(file))
-  if (ext == "csv") {
+  if (ext == "rds") {
+    clinical_raw <- readRDS(file)
+  } else if (ext == "csv") {
     clinical_raw <- read.csv(file, stringsAsFactors = FALSE, check.names = FALSE)
   } else {
     clinical_raw <- read.delim(file, stringsAsFactors = FALSE, check.names = FALSE)
   }
+
+  # Debug logging immediately before standardization begins
+  cat("[DEBUG] Ingested clinical data stats:\n")
+  print(class(clinical_raw))
+  print(dim(clinical_raw))
+  print(colnames(clinical_raw))
   
   # Parse mapping configuration
   mapping <- parse_clinical_mapping(column_map)

@@ -216,7 +216,28 @@ if (!isTRUE(val_res_se$valid)) {
 cat("  [OK] Pre-flight validation successfully checks SummarizedExperiment inputs without crashing\n")
 
 # ------------------------------------------------------------------------------
+# Test 7: Clinical RDS Loading & Validation
+# ------------------------------------------------------------------------------
+cat("\n[TEST 7] Verifying clinical RDS loading and pre-flight validation...\n")
+tmp_clinical_rds <- file.path(tmp_dir, "clinical_tcga.rds")
+saveRDS(df_tcga, tmp_clinical_rds)
+
+# Run validation using clinical RDS
+val_res_rds <- validate_inputs(
+  rna = tmp_rna,
+  meth = tmp_meth,
+  metadata = tmp_metadata,
+  clinical = tmp_clinical_rds,
+  clinical_map = tmp_map_json
+)
+
+if (!isTRUE(val_res_rds$valid)) {
+  stop("Fail: validation failed when utilizing clinical RDS file: ", paste(val_res_rds$errors, collapse = "; "))
+}
+cat("  [OK] Clinical RDS loaded, auto-detected, and validated successfully with debug logging printed\n")
+
+# ------------------------------------------------------------------------------
 # Cleanup
 # ------------------------------------------------------------------------------
-unlink(c(tmp_clinical_tcga, tmp_clinical_geo, tmp_clinical_custom, tmp_metadata, tmp_metadata_bad, tmp_rna, tmp_meth, tmp_map_json, tmp_se_rds))
+unlink(c(tmp_clinical_tcga, tmp_clinical_geo, tmp_clinical_custom, tmp_metadata, tmp_metadata_bad, tmp_rna, tmp_meth, tmp_map_json, tmp_se_rds, tmp_clinical_rds))
 cat("\n=== All clinical ingestion unit tests PASSED successfully! ===\n")
