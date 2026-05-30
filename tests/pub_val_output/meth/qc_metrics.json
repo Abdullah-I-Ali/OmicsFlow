@@ -1,0 +1,60 @@
+{
+  "pipeline_version": "1.0.0",
+  "omics_layer": "DNA Methylation (450k)",
+  "timestamp": "2026-05-31 00:36:37.461461",
+  "samples": {
+    "raw": 180,
+    "primary_tumor": 180,
+    "after_deduplication": 180,
+    "after_batch_na_removal": 180,
+    "after_singleton_removal": 180,
+    "after_clinical_filter": 180,
+    "final": 180
+  },
+  "probes": {
+    "raw": 5000,
+    "after_dedup": 5000,
+    "after_detection_pval": 5000,
+    "after_probe_filter": 3661,
+    "after_na_filter": 3661,
+    "selected_top_variable": 3661
+  },
+  "filters": {
+    "cross_reactive_removed": 300,
+    "snp_probes_removed": 1137,
+    "sex_chromosome_removed": 0,
+    "non_cpg_removed": 0,
+    "total_bad_probes": 30272,
+    "detection_pval_removed": 0,
+    "na_fraction_removed": 0
+  },
+  "outliers": {
+    "pc1_outliers": 0,
+    "pc2_outliers": 0,
+    "total_flagged": 0,
+    "outlier_ids": []
+  },
+  "batches": {
+    "total_detected": 3,
+    "singleton_batches": 0,
+    "combat_applied": true,
+    "covariates_protected": "TSS,PC1,PC2",
+    "protection_tier": "pca_surrogate"
+  },
+  "imputation": {
+    "method_used": "None",
+    "missing_fraction": 0,
+    "probes_imputed": 0
+  },
+  "m_value_stats": {
+    "global_min": -9.9643,
+    "global_max": 9.9643,
+    "global_mean": 0.3843
+  },
+  "output_matrices": {
+    "mofa_probes": 3661,
+    "mofa_samples": 180,
+    "ml_full_probes": 3661,
+    "ml_full_samples": 180
+  }
+}

@@ -47,7 +47,9 @@ option_list <- list(
   make_option(c("-i", "--iter"), type = "integer", default = 1000,
               help = "Max iterations [default= %default]"),
   make_option(c("--metadata"), type = "character", default = NULL,
-              help = "Path to sample metadata CSV file (optional)")
+              help = "Path to sample metadata CSV file (optional)"),
+  make_option(c("-s", "--seed"), type = "integer", default = 42,
+              help = "Random seed for reproducibility [default= %default]")
 )
 
 opt_parser <- OptionParser(
@@ -73,7 +75,7 @@ source(file.path(script_dir, "export_integration.R"))
 # ------------------------------------------------------------------------------
 tryCatch({
   load_int_packages()
-  set.seed(42)
+  set.seed(opt$seed)
   
   if (!dir.exists(opt$outdir)) {
     dir.create(opt$outdir, recursive = TRUE)
@@ -206,8 +208,10 @@ tryCatch({
   train_opts <- get_default_training_options(mofa)
   train_opts$maxiter <- opt$iter
   train_opts$seed    <- 42
+  train_opts$convergence_mode <- "slow"   # stricter ELBO tolerance (1e-6 vs 1e-4)
   int_msg("seed = 42 (reproducible)")
   int_msg(sprintf("maxiter = %d", opt$iter))
+  int_msg("convergence_mode = 'slow' (publication-quality tolerance)")
   
   qc_metrics <- add_int_qc(qc_metrics, "model", "num_factors", opt$factors)
   qc_metrics <- add_int_qc(qc_metrics, "model", "maxiter", opt$iter)

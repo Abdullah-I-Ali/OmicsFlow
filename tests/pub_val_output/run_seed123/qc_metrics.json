@@ -1,0 +1,21 @@
+{
+  "samples": {
+    "initial_segments": 7683,
+    "initial_patients": 180,
+    "initial_samples": 180,
+    "final": 180
+  },
+  "genes": {
+    "genes_mapped": 34669,
+    "final_genes_before_immune_filter": 5000,
+    "final_genes": 4971
+  },
+  "filters": [],
+  "parameters": {
+    "n_top_genes": 5000
+  },
+  "metadata": {
+    "pipeline_version": "2.0",
+    "timestamp": "2026-05-31 00:35:51.231286"
+  }
+}

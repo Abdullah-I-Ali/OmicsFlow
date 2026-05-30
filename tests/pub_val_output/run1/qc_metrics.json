@@ -1,0 +1,56 @@
+{
+  "pipeline_version": "1.0.0",
+  "omics_layer": "RNA-seq",
+  "timestamp": "2026-05-31 00:34:27.303685",
+  "samples": {
+    "raw": 180,
+    "primary_tumor": 180,
+    "after_deduplication": 180,
+    "low_depth_flagged": 180,
+    "after_outlier_removal": 180,
+    "after_singleton_removal": 180,
+    "final": 180
+  },
+  "genes": {
+    "raw": 2000,
+    "after_zero_removal": 2000,
+    "after_cpm_filter": 2000,
+    "after_ensembl_mapping": 1971,
+    "after_symbol_dedup": 1933,
+    "after_na_filter": null,
+    "after_variance_filter": 1933,
+    "selected_top_variable": 1933,
+    "final_after_mean_filter": 1933,
+    "all_expressed_count": 1933
+  },
+  "outliers": {
+    "low_correlation_threshold": 0,
+    "high_correlation_threshold": 1,
+    "low_outliers_count": 0,
+    "high_outliers_count": 0,
+    "total_removed": 0
+  },
+  "batches": {
+    "total_batches_detected": 3,
+    "singleton_batches": 0,
+    "batches_corrected": 3,
+    "correction_applied": true,
+    "protection_tier": "pca_surrogate",
+    "covariates_protected": "PC1,PC2"
+  },
+  "library_size": {
+    "min_reads": 544048,
+    "max_reads": 774734,
+    "median_reads": 643922.5
+  },
+  "output_matrices": {
+    "zscore_mean": 5.5511e-18,
+    "zscore_sd": 0.9972,
+    "ml_range_min": -3.6698,
+    "ml_range_max": 15.8594,
+    "genes_mofa": 1933,
+    "genes_ml": 1933,
+    "samples_mofa": 180,
+    "samples_ml": 180
+  }
+}

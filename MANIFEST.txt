@@ -1,0 +1,11 @@
+id	filename	md5	size	state
+7fff968e-af87-4766-98a0-3eebed53264c	7fff968e-af87-4766-98a0-3eebed53264c/b72d0a6b-8984-4854-b4b3-3f4671a0bff5.rna_seq.augmented_star_gene_counts.tsv	ef051fb47723187c03c1e96baa7070af	4213707	validated
+1f1c530d-5934-4bfb-bc45-d5d7d632301d	1f1c530d-5934-4bfb-bc45-d5d7d632301d/3a9a7eaf-120e-4c63-8185-a27f697ce299.rna_seq.augmented_star_gene_counts.tsv	7d559753865f795e0ea3cb55a5dafa7b	4215346	validated
+2c941f66-90ae-4126-9ff4-44ce398c3d3f	2c941f66-90ae-4126-9ff4-44ce398c3d3f/f42e7ae4-f25b-4cec-a514-cd7f47dd43b8.rna_seq.augmented_star_gene_counts.tsv	38d1b6229e7f8bdd71440d2088804008	4215934	validated
+3c44e284-32e2-48bb-aeed-20c739ef4260	3c44e284-32e2-48bb-aeed-20c739ef4260/598eebde-1c35-4dfb-be46-167c6b2b3819.rna_seq.augmented_star_gene_counts.tsv	10def6607be4693acb5bf3c019c85908	4220585	validated
+1d970f75-011a-4fc6-a151-1ad62e016c35	1d970f75-011a-4fc6-a151-1ad62e016c35/0c792398-8789-4708-bc3a-73b0bde80175.rna_seq.augmented_star_gene_counts.tsv	1ca1d48901cb0892928d74ba26237016	4215959	validated
+4222f092-b07a-42a9-8f97-c89545790942	4222f092-b07a-42a9-8f97-c89545790942/e1ac88db-c63b-405a-bf22-0c02eab7ecff.rna_seq.augmented_star_gene_counts.tsv	25fc6bc8ca46dc12b57d9ca6520f68fc	4212687	validated
+e523c375-f64a-4904-af5c-3da6d2d4f59a	e523c375-f64a-4904-af5c-3da6d2d4f59a/d48466f5-2fbe-455a-9e19-2277f71983d5.rna_seq.augmented_star_gene_counts.tsv	de52519b879bbdab17b111159c6ae238	4231350	validated
+276aeda4-33d9-45c4-abe5-734da78a78ea	276aeda4-33d9-45c4-abe5-734da78a78ea/ddc9ddb7-8686-4cd7-8f81-71ff37c8203e.rna_seq.augmented_star_gene_counts.tsv	aee381856a2d9a3e0671b34bfc455d15	4184330	validated
+8c5e6f18-3a16-4065-ab12-d3391da154e9	8c5e6f18-3a16-4065-ab12-d3391da154e9/61b1ca49-d26b-432d-bc34-98c4644f8b4f.rna_seq.augmented_star_gene_counts.tsv	9d954efe72746fbf0d903e46c383abd3	4205402	validated
+0db0e29f-bd16-4f9a-944a-9b2b73ae3231	0db0e29f-bd16-4f9a-944a-9b2b73ae3231/f94feb03-e191-4328-9818-7220696e3a86.rna_seq.augmented_star_gene_counts.tsv	7edd93248c2d77dd1e72dbf15b2d036e	4235412	validated

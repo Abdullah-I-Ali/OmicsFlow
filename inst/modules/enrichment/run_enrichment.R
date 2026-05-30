@@ -40,11 +40,15 @@ option_list <- list(
   make_option(c("--lasso"), type = "character", default = "results/ml/lasso_selected_genes.rds",
               help = "Path to LASSO genes (.rds)"),
   make_option(c("--rna"), type = "character", default = "results/ml/rna_for_pathway.rds",
-              help = "Path to RNA matrix for background universe (.rds)"),
+              help = "Path to RNA matrix for candidate genes (.rds)"),
+  make_option(c("--rna_full"), type = "character", default = NULL,
+              help = "Path to full pre-selection gene list (.rds) for background universe. If not provided, falls back to --rna rownames."),
   make_option(c("-o", "--outdir"), type = "character", default = "results/enrichment/",
               help = "Output directory [default= %default]"),
   make_option(c("--validation_keywords"), type = "character", default = NULL,
-              help = "Path to keywords JSON/txt or comma-separated string (optional)")
+              help = "Path to keywords JSON/txt or comma-separated string (optional)"),
+  make_option(c("-s", "--seed"), type = "integer", default = 42,
+              help = "Random seed for reproducibility [default= %default]")
 )
 
 opt_parser <- OptionParser(
@@ -70,7 +74,7 @@ source(file.path(script_dir, "export_enrichment.R"))
 # ------------------------------------------------------------------------------
 tryCatch({
   load_pathway_packages()
-  set.seed(42)
+  set.seed(opt$seed)
   
   if (!dir.exists(opt$outdir)) {
     dir.create(opt$outdir, recursive = TRUE)
@@ -115,8 +119,32 @@ tryCatch({
   gene_entrez <- bitr(all_candidate_genes, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
   path_msg(sprintf("Candidate genes mapped: %d / %d", nrow(gene_entrez), length(all_candidate_genes)))
   
-  universe_entrez <- bitr(rownames(rna), fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
-  path_msg(sprintf("Universe genes mapped:  %d / %d", nrow(universe_entrez), nrow(rna)))
+  # ── Background Universe Selection ──
+  # Use the full pre-selection expressed gene list if provided (--rna_full).
+  # This is the statistically correct universe: all genes that COULD have been
+  # selected, not just those that WERE selected. Using the post-selection
+  # top-N subset inflates enrichment p-values by ~10x.
+  # Reference: Timmons et al. (2015) PLOS Comput Biol; clusterProfiler docs.
+  
+  if (!is.null(opt$rna_full) && file.exists(opt$rna_full)) {
+    rna_full_genes <- readRDS(opt$rna_full)
+    # Handle both a character vector of gene names and a matrix
+    if (is.matrix(rna_full_genes) || is.data.frame(rna_full_genes)) {
+      universe_symbols <- rownames(rna_full_genes)
+    } else {
+      universe_symbols <- rna_full_genes
+    }
+    path_msg(sprintf("Background universe: %d genes (full pre-selection list from --rna_full)", 
+                     length(universe_symbols)))
+  } else {
+    universe_symbols <- rownames(rna)
+    path_msg(sprintf("Background universe: %d genes (from --rna, post-selection fallback)", 
+                     length(universe_symbols)), level = "WARN")
+    path_msg("NOTE: For statistically correct enrichment, provide --rna_full with the full expressed gene list.", level = "WARN")
+  }
+  
+  universe_entrez <- bitr(universe_symbols, fromType = "SYMBOL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)
+  path_msg(sprintf("Universe genes mapped:  %d / %d", nrow(universe_entrez), length(universe_symbols)))
   
   qc_metrics <- add_pathway_qc(qc_metrics, "genes", "mapped_candidates", nrow(gene_entrez))
   qc_metrics <- add_pathway_qc(qc_metrics, "genes", "mapped_universe", nrow(universe_entrez))

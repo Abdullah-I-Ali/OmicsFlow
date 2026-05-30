@@ -40,7 +40,9 @@ option_list <- list(
   make_option(c("-f", "--freq"), type = "numeric", default = 0.02,
               help = "Minimum mutation frequency threshold [default= %default]"),
   make_option(c("-t", "--topn"), type = "integer", default = 3000,
-              help = "Max number of genes to retain [default= %default]")
+              help = "Max number of genes to retain [default= %default]"),
+  make_option(c("-s", "--seed"), type = "integer", default = 42,
+              help = "Random seed for reproducibility [default= %default]")
 )
 
 opt_parser <- OptionParser(
@@ -72,7 +74,7 @@ source(file.path(dirname(script_dir), "utils_metadata.R"))
 # ------------------------------------------------------------------------------
 tryCatch({
   load_snv_packages()
-  set.seed(42)
+  set.seed(opt$seed)
   
   if (!dir.exists(opt$outdir)) {
     dir.create(opt$outdir, recursive = TRUE)

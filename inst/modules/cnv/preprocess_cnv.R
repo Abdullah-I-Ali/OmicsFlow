@@ -43,7 +43,9 @@ option_list <- list(
   make_option(c("-m", "--metadata"), type = "character", default = NULL,
               help = "Path to sample metadata CSV file (optional)"),
   make_option(c("-n", "--ntop"), type = "integer", default = 5000,
-              help = "Number of top variable genes to retain [default= %default]")
+              help = "Number of top variable genes to retain [default= %default]"),
+  make_option(c("-s", "--seed"), type = "integer", default = 42,
+              help = "Random seed for reproducibility [default= %default]")
 )
 
 opt_parser <- OptionParser(
@@ -75,7 +77,7 @@ source(file.path(dirname(script_dir), "utils_metadata.R"))
 # ------------------------------------------------------------------------------
 tryCatch({
   load_cnv_packages()
-  set.seed(42)
+  set.seed(opt$seed)
   
   if (!dir.exists(opt$outdir)) {
     dir.create(opt$outdir, recursive = TRUE)

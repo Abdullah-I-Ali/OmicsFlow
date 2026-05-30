@@ -1,0 +1,27 @@
+{
+  "samples": {
+    "common_patients": 180
+  },
+  "features": {
+    "RNA": 1933,
+    "Methylation": 3661,
+    "CNV": 4971
+  },
+  "model": {
+    "num_factors": 15,
+    "maxiter": 10,
+    "active_factors_count": 15,
+    "r2_total_RNA": 11.7706,
+    "r2_total_Methylation": 14.2579,
+    "r2_total_CNV": 84.5637
+  },
+  "metadata": {
+    "pipeline_version": "2.0",
+    "timestamp": "2026-05-31 00:38:02.621425"
+  },
+  "views": {
+    "RNA": 1933,
+    "Methylation": 3661,
+    "CNV": 4971
+  }
+}

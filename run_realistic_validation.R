@@ -84,6 +84,8 @@ cmds$RNA <- paste(
   "Rscript modules/rna/preprocess_rna.R",
   sprintf("--input %s/rna.rds", data_dir),
   sprintf("--metadata %s/sample_metadata.csv", data_dir),
+  sprintf("--clinical %s/custom_clinical.tsv", data_dir),
+  sprintf("--clinical_map %s/clinical_map.json", data_dir),
   sprintf("--outdir %s/", dirs$rna),
   "--n-top 200",
   "--cor-low -1.0",
@@ -125,8 +127,8 @@ cmds$INTEGRATION <- paste(
   sprintf("--snv %s/snv_processed_matrix.rds", dirs$snv),
   sprintf("--metadata %s/sample_metadata.csv", data_dir),
   sprintf("--outdir %s/", dirs$integ),
-  "--factors 5",
-  "--iter 100"
+  "--factors 15",
+  "--iter 1000"
 )
 
 cmds$ML <- paste(
@@ -147,6 +149,7 @@ cmds$ENRICHMENT <- paste(
   sprintf("--rf %s/rf_top_genes.rds", dirs$ml),
   sprintf("--lasso %s/lasso_selected_genes.rds", dirs$ml),
   sprintf("--rna %s/rna_for_pathway.rds", dirs$ml),
+  sprintf("--rna_full %s/rna_all_expressed_genes.rds", dirs$rna),
   sprintf("--outdir %s/", dirs$enrich)
 )
 

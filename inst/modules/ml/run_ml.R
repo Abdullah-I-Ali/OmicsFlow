@@ -50,7 +50,9 @@ option_list <- list(
   make_option(c("--clinical_map"), type = "character", default = NULL,
               help = "Path to clinical column mapping JSON file (optional)"),
   make_option(c("--metadata"), type = "character", default = NULL,
-              help = "Path to sample metadata CSV file (optional)")
+              help = "Path to sample metadata CSV file (optional)"),
+  make_option(c("-s", "--seed"), type = "integer", default = 42,
+              help = "Random seed for reproducibility [default= %default]")
 )
 
 opt_parser <- OptionParser(
@@ -81,7 +83,7 @@ tryCatch({
     dir.create(opt$outdir, recursive = TRUE)
   }
   
-  set.seed(42)
+  set.seed(opt$seed)
   qc_metrics <- init_ml_qc()
   
   ml_banner("OmicsFlow v1.0.0 | ML Survival Analysis")

@@ -1,0 +1,24 @@
+{
+  "samples": {
+    "initial_samples": 180,
+    "patient_level_standardized": 180,
+    "final": 176,
+    "zero_mutation_patients": 0
+  },
+  "genes": {
+    "final_genes": 378
+  },
+  "filters": {
+    "initial_mutations": 3252,
+    "retained_functional_mutations": 3252,
+    "removed_nonfunctional_mutations": 0,
+    "hypermutated_patients_removed": 4
+  },
+  "parameters": {
+    "mean_mutation_rate": 0.045
+  },
+  "metadata": {
+    "pipeline_version": "2.0",
+    "timestamp": "2026-05-31 00:36:11.447743"
+  }
+}

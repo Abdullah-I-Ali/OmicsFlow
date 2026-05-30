@@ -38,7 +38,11 @@ option_list <- list(
   make_option("--knn-k",        type="integer",   default=10L,
               help="k value for KNN imputation [default: 10]"),
   make_option("--clinical_map", type="character", default=NULL,
-              help="Clinical column mapping (JSON file/string) for custom cohorts [optional]")
+              help="Clinical column mapping (JSON file/string) for custom cohorts [optional]"),
+  make_option("--batch-covariates", type="character", default=NULL,
+              help="Comma-separated covariate columns to protect during batch correction [optional]"),
+  make_option("--seed",         type="integer",   default=42L,
+              help="Random seed for reproducibility [default: 42]")
 )
 
 parser <- OptionParser(option_list = option_list,
@@ -67,7 +71,7 @@ source(file.path(dirname(script_dir), "utils_clinical.R"))
 # INITIALISE
 # ------------------------------------------------------------------------------
 meth_load_packages()
-set.seed(42)
+set.seed(args$seed)
 meth_ensure_dirs(args$outdir)
 qc <- meth_init_qc()
 probe_log <- meth_init_probe_log()
@@ -222,7 +226,7 @@ if (!is.null(cross_react_path) && nzchar(cross_react_path) && file.exists(cross_
     if (!is.null(args[["cross-react"]])) {
       write.csv(cr, args[["cross-react"]], row.names = FALSE)
     }
-  }, error = function(e) meth_msg("Cross-reactive download failed — skipping.", level = "WARN"))
+  }, error = function(e) meth_msg("Cross-reactive download failed \u2014 skipping.", level = "WARN"))
 }
 # Record QC metric AFTER cross_reac is definitively populated so the count is accurate.
 # If cross_reac is still empty here, the list could not be loaded — log a clear warning.
@@ -408,15 +412,28 @@ if (length(singletons) > 0) {
 qc <- meth_update_qc(qc, "samples", "after_batch_na_removal", ncol(meth_m))
 qc <- meth_update_qc(qc, "samples", "after_singleton_removal", ncol(meth_m))
 
-# Build biological model
+# Build covariate-protection design matrix (Tiered, dataset-agnostic)
+#
+# Methodology (in priority order):
+#   Tier 1: Explicit covariates via --batch-covariates CLI argument
+#   Tier 2: Auto-detect clinical covariates (age, gender, stage)
+#   Tier 3: PCA-based surrogate protection (top 2 PCs of pre-batch data)
+#
+# TSS (Tissue Source Site / Center) is always protected if available and having multiple levels.
+# This ensures biological/technical signal is preserved during ComBat batch correction.
+
+pca_before <- prcomp(t(meth_m), scale. = FALSE)
+
+protection_tier <- "none"
+final_covs <- character(0)
+model_data <- data.frame(row.names = colnames(meth_m))
+
+# Extract TSS/Center
 tss <- if (is.null(metadata)) {
   meth_extract_tss(orig_barcodes_matched)
 } else {
   get_center(orig_barcodes_matched, metadata)
 }
-
-final_covs <- character(0)
-model_data <- data.frame(row.names = colnames(meth_m))
 
 if (!is.null(tss)) {
   tss <- tss[match(colnames(meth_m), patient_current)]
@@ -426,53 +443,167 @@ if (!is.null(tss)) {
   }
 }
 
-if (!is.null(args[["clinical"]]) && file.exists(args[["clinical"]])) {
+# Tier 1: Explicit user-specified covariates
+if (!is.null(args[["batch-covariates"]])) {
+  user_covs <- trimws(strsplit(args[["batch-covariates"]], ",")[[1]])
+  meth_msg(sprintf("Tier 1: User-specified covariates: %s", paste(user_covs, collapse=", ")))
+  
+  if (!is.null(args$clinical) && file.exists(args$clinical)) {
+    tryCatch({
+      clinical_std <- load_clinical_data(
+        file       = args$clinical,
+        column_map = args$clinical_map,
+        metadata   = metadata
+      )
+      clinical_std <- clinical_std[!duplicated(clinical_std$patient_id), ]
+      rownames(clinical_std) <- clinical_std$patient_id
+      matched_clin <- clinical_std[colnames(meth_m), , drop = FALSE]
+      
+      # Read raw clinical data safely according to file type
+      ext <- tolower(tools::file_ext(args$clinical))
+      if (ext == "rds") {
+        clinical_raw <- readRDS(args$clinical)
+      } else if (ext == "csv") {
+        clinical_raw <- read.csv(args$clinical, stringsAsFactors = FALSE, check.names = FALSE)
+      } else {
+        clinical_raw <- read.delim(args$clinical, stringsAsFactors = FALSE, check.names = FALSE)
+      }
+      
+      cmap <- parse_clinical_mapping(args$clinical_map)
+      patient_col <- if (!is.null(cmap$patient_id)) cmap$patient_id else {
+        col_names <- colnames(clinical_raw)
+        col_names_lower <- tolower(col_names)
+        col_names[col_names_lower %in% c("patient_id", "patientid", "patient", "id", "bcr_patient_barcode", "patient_barcode", "sample", "sample_id", "sampleid", "subject", "subject_id", "case_id", "barcode", "patientbarcode")][1]
+      }
+      
+      pids_raw <- if (!is.null(patient_col) && patient_col %in% colnames(clinical_raw)) {
+        as.character(clinical_raw[[patient_col]])
+      } else {
+        character(0)
+      }
+      
+      if (!is.null(metadata) && length(pids_raw) > 0) {
+        meta_pids <- unique(metadata$patient_id)
+        meta_sids <- unique(metadata$sample_id)
+        match_direct <- pids_raw %in% meta_pids
+        match_sample <- pids_raw %in% meta_sids
+        if (sum(match_direct) < sum(match_sample)) {
+          mapped_idx <- match(pids_raw, metadata$sample_id)
+          pids_raw[!is.na(mapped_idx)] <- metadata$patient_id[mapped_idx[!is.na(mapped_idx)]]
+        }
+      }
+      
+      for (cov in user_covs) {
+        if (cov %in% colnames(matched_clin) && any(!is.na(matched_clin[[cov]]))) {
+          if (is.character(matched_clin[[cov]]) || is.factor(matched_clin[[cov]])) {
+            levs <- unique(na.omit(matched_clin[[cov]]))
+            if (length(levs) >= 2) {
+              model_data[[cov]] <- factor(matched_clin[[cov]])
+              final_covs <- c(final_covs, cov)
+            }
+          } else {
+            model_data[[cov]] <- matched_clin[[cov]]
+            final_covs <- c(final_covs, cov)
+          }
+        } else if (length(pids_raw) > 0 && cov %in% colnames(clinical_raw)) {
+          raw_cov_vals <- clinical_raw[[cov]]
+          names(raw_cov_vals) <- pids_raw
+          matched_cov_vals <- raw_cov_vals[colnames(meth_m)]
+          if (any(!is.na(matched_cov_vals))) {
+            if (is.character(matched_cov_vals) || is.factor(matched_cov_vals)) {
+              if (cov %in% c("stage", "ajcc_pathologic_stage", "tumor_stage", "clinical_stage", "Stage")) {
+                matched_cov_vals <- meth_map_stage(matched_cov_vals)
+              }
+              levs <- unique(na.omit(matched_cov_vals))
+              if (length(levs) >= 2) {
+                model_data[[cov]] <- factor(matched_cov_vals)
+                final_covs <- c(final_covs, cov)
+              }
+            } else {
+              model_data[[cov]] <- matched_cov_vals
+              final_covs <- c(final_covs, cov)
+            }
+          }
+        }
+      }
+      if (length(final_covs) > length(intersect(final_covs, "TSS"))) protection_tier <- "explicit"
+    }, error = function(e) {
+      meth_msg(sprintf("Tier 1 clinical loading failed: %s", e$message), level = "WARN")
+    })
+  }
+}
+
+# Tier 2: Auto-detect clinical covariates (age, gender, stage)
+if (protection_tier == "none" && !is.null(args$clinical) && file.exists(args$clinical)) {
   tryCatch({
-    # Load clinical data via the universal abstraction layer
+    meth_msg("Tier 2: Auto-detecting clinical covariates (age, gender, stage)...")
     clinical_std <- load_clinical_data(
-      file       = args[["clinical"]],
-      column_map = args[["clinical_map"]],
+      file       = args$clinical,
+      column_map = args$clinical_map,
       metadata   = metadata
     )
-    
-    # Deduplicate and index by patient_id
     clinical_std <- clinical_std[!duplicated(clinical_std$patient_id), ]
     rownames(clinical_std) <- clinical_std$patient_id
-    
-    # Match clinical rows to methylation sample columns
-    matched <- clinical_std[colnames(meth_m), , drop = FALSE]
+    matched_clin <- clinical_std[colnames(meth_m), , drop = FALSE]
     
     # Age covariate
-    if ("age" %in% colnames(matched) && any(!is.na(matched$age))) {
-      model_data$age <- matched$age
+    if ("age" %in% colnames(matched_clin) && any(!is.na(matched_clin$age))) {
+      model_data$age <- matched_clin$age
       final_covs <- c(final_covs, "age")
     }
     
     # Gender covariate
-    if ("gender" %in% colnames(matched) && any(!is.na(matched$gender))) {
-      levs <- unique(na.omit(matched$gender))
+    if ("gender" %in% colnames(matched_clin) && any(!is.na(matched_clin$gender))) {
+      levs <- unique(na.omit(matched_clin$gender))
       if (length(levs) >= 2) {
-        model_data$gender <- factor(matched$gender)
+        model_data$gender <- factor(matched_clin$gender)
         final_covs <- c(final_covs, "gender")
       }
     }
     
-    # Stage covariate — read from original clinical file if available
-    clinical_raw <- read.delim(args[["clinical"]], stringsAsFactors = FALSE, check.names = FALSE)
-    stage_col <- NULL
-    # Check for stage column: custom mapping first, then common names
-    cmap <- parse_clinical_mapping(args[["clinical_map"]])
-    if (!is.null(cmap$stage)) {
-      stage_col <- cmap$stage
+    # Stage covariate — safely read and standardise
+    ext <- tolower(tools::file_ext(args$clinical))
+    if (ext == "rds") {
+      clinical_raw <- readRDS(args$clinical)
+    } else if (ext == "csv") {
+      clinical_raw <- read.csv(args$clinical, stringsAsFactors = FALSE, check.names = FALSE)
     } else {
-      stage_candidates <- c("ajcc_pathologic_stage", "stage", "tumor_stage", "clinical_stage", "Stage")
-      stage_col <- intersect(colnames(clinical_raw), stage_candidates)[1]
+      clinical_raw <- read.delim(args$clinical, stringsAsFactors = FALSE, check.names = FALSE)
     }
-    if (!is.null(stage_col) && !is.na(stage_col) && stage_col %in% colnames(clinical_raw)) {
-      # Build stage vector aligned to clinical_std patient order
+    
+    cmap <- parse_clinical_mapping(args$clinical_map)
+    patient_col <- if (!is.null(cmap$patient_id)) cmap$patient_id else {
+      col_names <- colnames(clinical_raw)
+      col_names_lower <- tolower(col_names)
+      col_names[col_names_lower %in% c("patient_id", "patientid", "patient", "id", "bcr_patient_barcode", "patient_barcode", "sample", "sample_id", "sampleid", "subject", "subject_id", "case_id", "barcode", "patientbarcode")][1]
+    }
+    
+    stage_col <- if (!is.null(cmap$stage)) cmap$stage else {
+      stage_candidates <- c("ajcc_pathologic_stage", "stage", "tumor_stage", "clinical_stage", "Stage")
+      intersect(colnames(clinical_raw), stage_candidates)[1]
+    }
+    
+    if (!is.null(stage_col) && !is.na(stage_col) && stage_col %in% colnames(clinical_raw) && 
+        !is.null(patient_col) && patient_col %in% colnames(clinical_raw)) {
       stage_raw <- clinical_raw[[stage_col]]
-      names(stage_raw) <- clinical_std$patient_id[seq_along(stage_raw)]
-      stage_matched <- stage_raw[match(colnames(meth_m), names(stage_raw))]
+      pids_raw <- as.character(clinical_raw[[patient_col]])
+      
+      stage_map <- stage_raw
+      names(stage_map) <- pids_raw
+      
+      if (!is.null(metadata)) {
+        meta_pids <- unique(metadata$patient_id)
+        meta_sids <- unique(metadata$sample_id)
+        match_direct <- pids_raw %in% meta_pids
+        match_sample <- pids_raw %in% meta_sids
+        if (sum(match_direct) < sum(match_sample)) {
+          mapped_idx <- match(pids_raw, metadata$sample_id)
+          pids_raw[!is.na(mapped_idx)] <- metadata$patient_id[mapped_idx[!is.na(mapped_idx)]]
+          names(stage_map) <- pids_raw
+        }
+      }
+      
+      stage_matched <- stage_map[colnames(meth_m)]
       stage_clean <- meth_map_stage(stage_matched)
       levs <- unique(na.omit(stage_clean))
       if (length(levs) >= 2) {
@@ -481,19 +612,38 @@ if (!is.null(args[["clinical"]]) && file.exists(args[["clinical"]])) {
       }
     }
     
-    if (length(final_covs) > length(intersect(final_covs, "TSS"))) {
-      keep_idx <- complete.cases(model_data[, final_covs, drop = FALSE])
-      if (sum(keep_idx) > 10) {
-        meth_m <- meth_m[, keep_idx, drop = FALSE]
-        met_beta <- met_beta[, keep_idx, drop = FALSE]
-        batch_vec <- batch_vec[keep_idx]
-        model_data <- model_data[keep_idx, , drop = FALSE]
-      }
-    }
-    
-    meth_msg(sprintf("Clinical covariates loaded: %s", paste(final_covs, collapse = ", ")))
-  }, error = function(e) meth_msg(paste("Clinical data error:", e$message), level="WARN"))
+    if (length(final_covs) > length(intersect(final_covs, "TSS"))) protection_tier <- "clinical_auto"
+  }, error = function(e) {
+    meth_msg(sprintf("Tier 2 clinical auto-detection failed: %s", e$message), level = "WARN")
+  })
 }
+
+# Tier 3: PCA-based surrogate protection
+if (protection_tier == "none") {
+  meth_msg("Tier 3: PCA-based surrogate covariate protection (top 2 PCs)...")
+  n_pcs <- min(2, ncol(pca_before$x))
+  for (k in seq_len(n_pcs)) {
+    pc_name <- sprintf("PC%d", k)
+    model_data[[pc_name]] <- pca_before$x[, k]
+    final_covs <- c(final_covs, pc_name)
+  }
+  protection_tier <- "pca_surrogate"
+}
+
+# Align samples to complete covariate cases if clinical covariates were mapped
+if (length(final_covs) > 0) {
+  keep_idx <- complete.cases(model_data[, final_covs, drop = FALSE])
+  if (sum(keep_idx) > 10 && sum(keep_idx) < ncol(meth_m)) {
+    meth_m <- meth_m[, keep_idx, drop = FALSE]
+    met_beta <- met_beta[, keep_idx, drop = FALSE]
+    batch_vec <- batch_vec[keep_idx]
+    model_data <- model_data[keep_idx, , drop = FALSE]
+  }
+}
+
+meth_msg(sprintf("Protection tier:   %s", protection_tier))
+meth_msg(sprintf("Clinical covariates loaded: %s", paste(final_covs, collapse = ", ")))
+qc <- meth_update_qc(qc, "batches", "protection_tier", protection_tier)
 
 # Remove single-level factors
 for (cov in final_covs) {

@@ -25,6 +25,12 @@ option_list <- list(
               help="Output directory [default: results/rna/]"),
   make_option("--metadata",     type="character", default=NULL,
               help="Path to sample metadata CSV file (optional)"),
+  make_option("--clinical",     type="character", default=NULL,
+              help="Path to clinical data file (optional, for batch correction covariate protection)"),
+  make_option("--clinical_map", type="character", default=NULL,
+              help="Clinical column mapping (JSON file/string) for custom cohorts [optional]"),
+  make_option("--batch-covariates", type="character", default=NULL,
+              help="Comma-separated covariate columns to protect during batch correction [optional]"),
   make_option("--cpm-threshold",type="double",    default=1.0,
               help="CPM threshold for low-expression filtering [default: 1]"),
   make_option("--cpm-min-pct",  type="double",    default=0.20,
@@ -42,7 +48,9 @@ option_list <- list(
   make_option("--sd-threshold", type="double",    default=1e-8,
               help="Min SD for zero-variance removal [default: 1e-8]"),
   make_option("--na-threshold", type="double",    default=0.20,
-              help="Max NA fraction per gene before removal [default: 0.20]")
+              help="Max NA fraction per gene before removal [default: 0.20]"),
+  make_option("--seed",         type="integer",   default=42L,
+              help="Random seed for reproducibility [default: 42]")
 )
 
 parser <- OptionParser(option_list = option_list,
@@ -65,12 +73,13 @@ source(file.path(script_dir, "utils_rna.R"))
 source(file.path(script_dir, "qc_rna.R"))
 source(file.path(script_dir, "export_rna.R"))
 source(file.path(dirname(script_dir), "utils_metadata.R"))
+source(file.path(dirname(script_dir), "utils_clinical.R"))
 
 # ------------------------------------------------------------------------------
 # INITIALISE
 # ------------------------------------------------------------------------------
 rna_load_packages()
-set.seed(42)
+set.seed(args$seed)
 rna_ensure_dirs(args$outdir)
 qc <- rna_init_qc()
 
@@ -373,9 +382,9 @@ qc <- rna_update_qc(qc, "samples", "after_outlier_removal", ncol(rna_mat))
 rna_msg(sprintf("Samples remaining : %d", ncol(rna_mat)))
 
 # ==============================================================================
-# STEP 10 — BATCH EFFECT CORRECTION (Plate ID, positions 22-25)
+# STEP 10 — BATCH EFFECT CORRECTION (Covariate-Protected)
 # ==============================================================================
-rna_step(10, "Batch Effect Correction")
+rna_step(10, "Batch Effect Correction (Covariate-Protected)")
 if (!is.null(metadata)) {
   rna_msg("Batch variable: From Metadata")
 } else {
@@ -413,11 +422,159 @@ df_before  <- data.frame(
   Batch = batch_info
 )
 
+# ── Build covariate-protection design matrix (Tiered, dataset-agnostic) ──
+#
+# Methodology (in priority order):
+#   Tier 1: Explicit covariates via --batch-covariates CLI argument
+#   Tier 2: Auto-detect clinical covariates (age, gender) from clinical file
+#   Tier 3: PCA-based surrogate protection (top 2 PCs of pre-batch data)
+#   Fallback: ~1 (intercept only — equivalent to unprotected)
+#
+# This ensures biological signal is preserved during batch correction
+# without hard-coding assumptions about the cohort or disease type.
+# Reference: Leek et al. (2010) Nature Reviews Genetics; Ritchie et al.
+# (2015) Nucleic Acids Research (limma design matrix usage).
+
+protection_tier <- "none"
+final_covs <- character(0)
+model_data <- data.frame(row.names = colnames(rna_mat))
+
+# Tier 1: Explicit user-specified covariates
+if (!is.null(args[["batch-covariates"]])) {
+  user_covs <- trimws(strsplit(args[["batch-covariates"]], ",")[[1]])
+  rna_msg(sprintf("Tier 1: User-specified covariates: %s", paste(user_covs, collapse=", ")))
+  
+  # Try loading from clinical data
+  if (!is.null(args$clinical) && file.exists(args$clinical)) {
+    tryCatch({
+      clinical_std <- load_clinical_data(
+        file       = args$clinical,
+        column_map = args$clinical_map,
+        metadata   = metadata
+      )
+      clinical_std <- clinical_std[!duplicated(clinical_std$patient_id), ]
+      rownames(clinical_std) <- clinical_std$patient_id
+      matched_clin <- clinical_std[colnames(rna_mat), , drop = FALSE]
+      
+      for (cov in user_covs) {
+        if (cov %in% colnames(matched_clin) && any(!is.na(matched_clin[[cov]]))) {
+          if (is.character(matched_clin[[cov]]) || is.factor(matched_clin[[cov]])) {
+            levs <- unique(na.omit(matched_clin[[cov]]))
+            if (length(levs) >= 2) {
+              model_data[[cov]] <- factor(matched_clin[[cov]])
+              final_covs <- c(final_covs, cov)
+            }
+          } else {
+            model_data[[cov]] <- matched_clin[[cov]]
+            final_covs <- c(final_covs, cov)
+          }
+        }
+      }
+      if (length(final_covs) > 0) protection_tier <- "explicit"
+    }, error = function(e) {
+      rna_msg(sprintf("Tier 1 clinical loading failed: %s", e$message), level = "WARN")
+    })
+  }
+}
+
+# Tier 2: Auto-detect clinical covariates (age, gender)
+if (protection_tier == "none" && !is.null(args$clinical) && file.exists(args$clinical)) {
+  tryCatch({
+    rna_msg("Tier 2: Auto-detecting clinical covariates (age, gender)...")
+    clinical_std <- load_clinical_data(
+      file       = args$clinical,
+      column_map = args$clinical_map,
+      metadata   = metadata
+    )
+    clinical_std <- clinical_std[!duplicated(clinical_std$patient_id), ]
+    rownames(clinical_std) <- clinical_std$patient_id
+    matched_clin <- clinical_std[colnames(rna_mat), , drop = FALSE]
+    
+    # Age covariate
+    if ("age" %in% colnames(matched_clin) && any(!is.na(matched_clin$age))) {
+      model_data$age <- matched_clin$age
+      final_covs <- c(final_covs, "age")
+    }
+    
+    # Gender covariate
+    if ("gender" %in% colnames(matched_clin) && any(!is.na(matched_clin$gender))) {
+      levs <- unique(na.omit(matched_clin$gender))
+      if (length(levs) >= 2) {
+        model_data$gender <- factor(matched_clin$gender)
+        final_covs <- c(final_covs, "gender")
+      }
+    }
+    
+    if (length(final_covs) > 0) protection_tier <- "clinical_auto"
+  }, error = function(e) {
+    rna_msg(sprintf("Tier 2 clinical auto-detection failed: %s", e$message), level = "WARN")
+  })
+}
+
+# Tier 3: PCA-based surrogate protection (protect top 2 PCs)
+if (protection_tier == "none") {
+  rna_msg("Tier 3: PCA-based surrogate covariate protection (top 2 PCs)...")
+  # Use the PCA already computed on pre-batch data
+  n_pcs <- min(2, ncol(pca_before$x))
+  for (k in seq_len(n_pcs)) {
+    pc_name <- sprintf("PC%d", k)
+    model_data[[pc_name]] <- pca_before$x[, k]
+    final_covs <- c(final_covs, pc_name)
+  }
+  protection_tier <- "pca_surrogate"
+}
+
+# Build final design matrix
+if (length(final_covs) > 0) {
+  # Remove rows with NA in any covariate
+  keep_idx <- complete.cases(model_data[, final_covs, drop = FALSE])
+  if (sum(keep_idx) < ncol(rna_mat) * 0.8) {
+    rna_msg(sprintf("Warning: %d samples lack covariate data. Falling back to ~1.",
+                    sum(!keep_idx)), level = "WARN")
+    design_mat <- model.matrix(~ 1, data = data.frame(row.names = colnames(rna_mat)))
+    final_covs <- character(0)
+    protection_tier <- "fallback"
+  } else {
+    if (sum(!keep_idx) > 0) {
+      rna_msg(sprintf("Removing %d samples with missing covariate data", sum(!keep_idx)))
+      rna_mat    <- rna_mat[, keep_idx, drop = FALSE]
+      batch_info <- batch_info[keep_idx]
+      model_data <- model_data[keep_idx, , drop = FALSE]
+      # Re-drop singleton batches after covariate filtering
+      if (any(table(batch_info) == 1)) {
+        keep2 <- !batch_info %in% names(which(table(batch_info) == 1))
+        rna_mat    <- rna_mat[, keep2, drop = FALSE]
+        batch_info <- droplevels(batch_info[keep2])
+        model_data <- model_data[keep2, , drop = FALSE]
+      }
+    }
+    design_mat <- model.matrix(
+      as.formula(paste("~", paste(final_covs, collapse = " + "))),
+      data = model_data
+    )
+    # Ensure design matrix is full rank
+    rnk <- qr(design_mat)$rank
+    if (rnk < ncol(design_mat)) {
+      design_mat <- design_mat[, qr(design_mat)$pivot[seq_len(rnk)], drop = FALSE]
+    }
+  }
+} else {
+  design_mat <- model.matrix(~ 1, data = data.frame(row.names = colnames(rna_mat)))
+  protection_tier <- "fallback"
+}
+
+rna_msg(sprintf("Protection tier:   %s", protection_tier))
+rna_msg(sprintf("Covariates used:   %s", 
+                if(length(final_covs) > 0) paste(final_covs, collapse=", ") else "none (intercept only)"))
+rna_msg(sprintf("Design matrix:     %d samples × %d columns", nrow(design_mat), ncol(design_mat)))
+qc <- rna_update_qc(qc, "batches", "protection_tier", protection_tier)
+qc <- rna_update_qc(qc, "batches", "covariates_protected", paste(final_covs, collapse=","))
+
 # Apply removeBatchEffect (limma) — only when >= 2 batches remain
 if (nlevels(batch_info) > 1) {
-  rna_msg(sprintf("Running removeBatchEffect on %d batches...",
+  rna_msg(sprintf("Running removeBatchEffect on %d batches (with covariate protection)...",
                   nlevels(batch_info)))
-  rna_mat <- removeBatchEffect(rna_mat, batch = batch_info)
+  rna_mat <- removeBatchEffect(rna_mat, batch = batch_info, design = design_mat)
   qc <- rna_update_qc(qc, "batches", "correction_applied",  TRUE)
   qc <- rna_update_qc(qc, "batches", "batches_corrected",   nlevels(batch_info))
   rna_msg("Batch correction complete.")
@@ -442,6 +599,15 @@ rna_msg("CRITICAL: Feature selection BEFORE Z-scoring (post Z-score all vars ~ 1
 
 # Variance calculated on log2 CPM (not Z-scored) — correct order is critical
 gene_var <- apply(rna_mat, 1, var)
+
+# ── Save full pre-selection gene list for enrichment background universe ──
+# This is the complete set of expressed, mapped, quality-filtered genes
+# BEFORE top-N variance selection. Using this as the enrichment universe
+# is statistically correct (vs. the top-N subset which inflates p-values).
+all_expressed_genes <- rownames(rna_mat)
+qc <- rna_update_qc(qc, "genes", "all_expressed_count", length(all_expressed_genes))
+rna_msg(sprintf("Full expressed gene set: %d genes (saved for enrichment universe)",
+                length(all_expressed_genes)))
 
 n_top   <- min(args[["n-top"]], nrow(rna_mat))
 top_idx <- order(gene_var, decreasing = TRUE)[1:n_top]
@@ -541,6 +707,12 @@ if (!is.null(metadata)) {
     stringsAsFactors = FALSE
   )
 }
+
+# Save the full pre-selection gene list for correct enrichment background
+rna_all_path <- file.path(args$outdir, "rna_all_expressed_genes.rds")
+saveRDS(all_expressed_genes, rna_all_path)
+rna_msg(sprintf("Saved: rna_all_expressed_genes.rds (%d genes, enrichment universe)",
+                length(all_expressed_genes)))
 
 export_rna_results(
   rna_scaled  = rna_scaled,

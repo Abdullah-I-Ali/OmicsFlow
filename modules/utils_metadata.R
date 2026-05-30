@@ -119,11 +119,15 @@ get_batch <- function(sample_ids, metadata = NULL, omics_type = "rna") {
     # Fallback to TCGA
     if (omics_type == "rna") {
       # RNA Plate ID: positions 22-25
-      return(substr(as.character(sample_ids), 22, 25))
+      res <- substr(as.character(sample_ids), 22, 25)
+      res[is.na(res) | res == ""] <- "batch1"
+      return(res)
     } else if (omics_type == "meth") {
       # Methylation Plate ID: position 6 after splitting by "-"
-      sapply(strsplit(as.character(sample_ids), "-"),
-             function(x) if (length(x) >= 6) x[6] else NA_character_)
+      res <- sapply(strsplit(as.character(sample_ids), "-"),
+                    function(x) if (length(x) >= 6) x[6] else NA_character_)
+      res[is.na(res) | res == ""] <- "batch1"
+      return(res)
     } else {
       return(rep("batch1", length(sample_ids)))
     }
