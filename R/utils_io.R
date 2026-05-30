@@ -15,7 +15,11 @@ read_matrix_safe <- function(path) {
   ext <- tolower(tools::file_ext(path))
   tryCatch({
     if (ext == "rds") {
-      readRDS(path)
+      obj <- readRDS(path)
+      if (inherits(obj, "SummarizedExperiment")) {
+        obj <- SummarizedExperiment::assay(obj)
+      }
+      obj
     } else if (ext == "csv") {
       read.csv(path, row.names = 1, check.names = FALSE, stringsAsFactors = FALSE)
     } else if (ext %in% c("tsv", "txt")) {

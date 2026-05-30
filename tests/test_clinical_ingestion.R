@@ -169,7 +169,54 @@ if (!has_error) {
 cat("  [OK] Successfully failed validation with clear warning when patient overlap is 0\n")
 
 # ------------------------------------------------------------------------------
+# Test 6: SummarizedExperiment Integration & Auto-Unwrapping
+# ------------------------------------------------------------------------------
+cat("\n[TEST 6] Verifying SummarizedExperiment auto-unwrapping and validation...\n")
+library(SummarizedExperiment)
+
+# 6.1 Create a SummarizedExperiment
+mock_counts <- matrix(rnorm(300), nrow = 100, ncol = 3, 
+                      dimnames = list(paste0("g", 1:100), c("S1", "S2", "S3")))
+mock_se <- SummarizedExperiment(assays = list(counts = mock_counts))
+
+# 6.2 Save as RDS
+tmp_se_rds <- file.path(tmp_dir, "test_se.rds")
+saveRDS(mock_se, tmp_se_rds)
+
+# 6.3 Load through read_matrix_safe()
+loaded_mat <- OmicsFlow:::read_matrix_safe(tmp_se_rds)
+
+# 6.4 Verify a standard matrix is returned
+if (is.null(loaded_mat)) {
+  stop("Fail: read_matrix_safe() returned NULL for SummarizedExperiment RDS")
+}
+if (!is.matrix(loaded_mat)) {
+  stop("Fail: read_matrix_safe() did not unwrap SummarizedExperiment to a plain matrix. Class found: ", class(loaded_mat)[1])
+}
+if (!all(dim(loaded_mat) == c(100, 3))) {
+  stop("Fail: unwrapped matrix has incorrect dimensions: ", paste(dim(loaded_mat), collapse = "x"))
+}
+if (!all(colnames(loaded_mat) == c("S1", "S2", "S3"))) {
+  stop("Fail: unwrapped matrix has incorrect column names")
+}
+cat("  [OK] Centralized I/O successfully unwrapped SummarizedExperiment RDS to plain matrix\n")
+
+# 6.5 Run validation successfully using the SummarizedExperiment RDS
+val_res_se <- validate_inputs(
+  rna = tmp_se_rds,
+  meth = tmp_meth,
+  metadata = tmp_metadata,
+  clinical = tmp_clinical_tcga,
+  clinical_map = tmp_map_json
+)
+
+if (!isTRUE(val_res_se$valid)) {
+  stop("Fail: validation failed when utilizing SummarizedExperiment RDS: ", paste(val_res_se$errors, collapse = "; "))
+}
+cat("  [OK] Pre-flight validation successfully checks SummarizedExperiment inputs without crashing\n")
+
+# ------------------------------------------------------------------------------
 # Cleanup
 # ------------------------------------------------------------------------------
-unlink(c(tmp_clinical_tcga, tmp_clinical_geo, tmp_clinical_custom, tmp_metadata, tmp_metadata_bad, tmp_rna, tmp_meth, tmp_map_json))
+unlink(c(tmp_clinical_tcga, tmp_clinical_geo, tmp_clinical_custom, tmp_metadata, tmp_metadata_bad, tmp_rna, tmp_meth, tmp_map_json, tmp_se_rds))
 cat("\n=== All clinical ingestion unit tests PASSED successfully! ===\n")

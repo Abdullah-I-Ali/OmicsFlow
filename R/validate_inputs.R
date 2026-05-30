@@ -211,17 +211,33 @@ validate_inputs <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
           if (label %in% c("RNA-seq matrix", "Methylation matrix")) {
             mat <- read_matrix_safe(path)
             if (!is.null(mat)) {
-              sub_mat <- mat[1:min(100, nrow(mat)), , drop = FALSE]
-              na_counts <- rowSums(is.na(sub_mat))
-              all_na_rows <- sum(na_counts == ncol(sub_mat))
-              if (all_na_rows > 0) {
-                log_warn(sprintf("Detected %d completely NA rows in first 100 features of %s", all_na_rows, label))
+              if (!is.matrix(mat) && !is.data.frame(mat)) {
+                mat <- as.matrix(mat)
               }
               
-              row_vars <- apply(sub_mat, 1, var, na.rm = TRUE)
-              zero_var_rows <- sum(row_vars == 0, na.rm = TRUE)
-              if (zero_var_rows > 0) {
-                log_warn(sprintf("Detected %d zero-variance rows in first 100 features of %s", zero_var_rows, label))
+              sub_mat <- mat[1:min(100, nrow(mat)), , drop = FALSE]
+              
+              if (is.matrix(sub_mat) || is.data.frame(sub_mat)) {
+                dims <- dim(sub_mat)
+                log_ok(sprintf("Checking %s subset dimensions: %d rows, %d columns", label, dims[1], dims[2]))
+                
+                if (length(dims) == 2 && dims[1] > 0 && dims[2] > 0) {
+                  na_counts <- rowSums(is.na(sub_mat))
+                  all_na_rows <- sum(na_counts == ncol(sub_mat))
+                  if (all_na_rows > 0) {
+                    log_warn(sprintf("Detected %d completely NA rows in first 100 features of %s", all_na_rows, label))
+                  }
+                  
+                  row_vars <- apply(sub_mat, 1, var, na.rm = TRUE)
+                  zero_var_rows <- sum(row_vars == 0, na.rm = TRUE)
+                  if (zero_var_rows > 0) {
+                    log_warn(sprintf("Detected %d zero-variance rows in first 100 features of %s", zero_var_rows, label))
+                  }
+                } else {
+                  log_warn(sprintf("Subset of %s has invalid/empty dimensions: %s", label, paste(dims, collapse = "x")))
+                }
+              } else {
+                log_warn(sprintf("Subset of %s is not a matrix or data.frame (class: %s)", label, class(sub_mat)[1]))
               }
             }
           }
