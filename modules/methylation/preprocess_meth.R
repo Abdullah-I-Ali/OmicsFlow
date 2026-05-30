@@ -186,12 +186,22 @@ anno     <- anno[shared, , drop = FALSE]
 
 # 3.1 Cross-reactive probes
 cross_reac <- character(0)
-if (!is.null(args[["cross-react"]]) && file.exists(args[["cross-react"]])) {
-  cr <- read.csv(args[["cross-react"]], stringsAsFactors = FALSE)
+cross_react_path <- args[["cross-react"]]
+
+# Try to resolve bundled path if not provided
+if (is.null(cross_react_path) || !nzchar(cross_react_path) || !file.exists(cross_react_path)) {
+  bundled_path <- system.file("configs", "cross_reactive_probes.csv", package = "OmicsFlow")
+  if (nzchar(bundled_path) && file.exists(bundled_path)) {
+    cross_react_path <- bundled_path
+  }
+}
+
+if (!is.null(cross_react_path) && nzchar(cross_react_path) && file.exists(cross_react_path)) {
+  cr <- read.csv(cross_react_path, stringsAsFactors = FALSE)
   col <- intersect(c("TargetID", "Probe_ID", "probe"), names(cr))
   cross_reac <- if (length(col) > 0) as.character(cr[[col[1]]]) else as.character(cr[[1]])
   meth_msg(sprintf("Cross-reactive probe list loaded: %s probes (from %s)",
-                   format(length(cross_reac), big.mark = ","), args[["cross-react"]]))
+                   format(length(cross_reac), big.mark = ","), cross_react_path))
 } else {
   tryCatch({
     cross_url <- "https://raw.githubusercontent.com/sirselim/illumina450k_filtering/master/Chen_2013_cross_reactive_probes.csv"
@@ -203,7 +213,7 @@ if (!is.null(args[["cross-react"]]) && file.exists(args[["cross-react"]])) {
     if (!is.null(args[["cross-react"]])) {
       write.csv(cr, args[["cross-react"]], row.names = FALSE)
     }
-  }, error = function(e) meth_msg("Cross-reactive download failed — skipping.", level = "WARN"))
+  }, error = function(e) meth_msg("Cross-reactive download failed \u2014 skipping.", level = "WARN"))
 }
 # Record QC metric AFTER cross_reac is definitively populated so the count is accurate.
 # If cross_reac is still empty here, the list could not be loaded — log a clear warning.

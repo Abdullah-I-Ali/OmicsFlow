@@ -335,21 +335,46 @@ omicsflow <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
   }
   
   # --- 8. Render Report ---
+  report_path <- NULL
+  exit_report <- 1L
   if (render_report && isTRUE(status$INTEGRATION)) {
     if (verbose) msg_info("Rendering Quarto HTML Report...")
-    # Map the relative results directory from the reports/ directory
-    # If outdir is relative, we should adjust or pass absolute path
     abs_outdir <- normalizePath(outdir, mustWork = FALSE)
-    report_qmd <- omicsflow_path("reports", "OmicsFlow_Report.qmd")
-    # We render reports/OmicsFlow_Report.qmd using the generated outdir as results_dir
+    
+    # Destination directory inside the user's results folder
+    report_output_dir <- file.path(abs_outdir, "reports")
+    dir.create(report_output_dir, recursive = TRUE, showWarnings = FALSE)
+    
+    # Copy the QMD and CSS to a temp directory so Quarto can write alongside
+    # the source without needing write access to the installed package library.
+    report_qmd_src <- omicsflow_path("reports", "OmicsFlow_Report.qmd")
+    report_css_src <- omicsflow_path("reports", "styles.css")
+    
+    render_tmp <- file.path(tempdir(), "omicsflow_report_render")
+    dir.create(render_tmp, recursive = TRUE, showWarnings = FALSE)
+    
+    file.copy(report_qmd_src, file.path(render_tmp, "OmicsFlow_Report.qmd"), overwrite = TRUE)
+    if (file.exists(report_css_src)) {
+      file.copy(report_css_src, file.path(render_tmp, "styles.css"), overwrite = TRUE)
+    }
+    
+    render_qmd <- file.path(render_tmp, "OmicsFlow_Report.qmd")
+    
     cmd_report <- sprintf(
-      "quarto render %s --to html -P results_dir:\"%s\" -P version:\"RStudio Runner\" -P subtitle:\"OmicsFlow Analytical Run\"",
-      shQuote(report_qmd),
+      "quarto render %s --to html --output-dir %s -P results_dir:\"%s\" -P version:\"RStudio Runner\" -P subtitle:\"OmicsFlow Analytical Run\"",
+      shQuote(render_qmd),
+      shQuote(normalizePath(report_output_dir, mustWork = FALSE)),
       gsub("\\\\", "/", abs_outdir)
     )
     exit_report <- system(cmd_report)
-    if (exit_report == 0) {
-      if (verbose) msg_ok("HTML Report successfully generated at reports/OmicsFlow_Report.html")
+    
+    # Post-render validation: verify the HTML actually exists
+    expected_html <- file.path(report_output_dir, "OmicsFlow_Report.html")
+    if (exit_report == 0 && file.exists(expected_html)) {
+      report_path <- normalizePath(expected_html)
+      if (verbose) msg_ok(sprintf("HTML Report successfully generated: %s", report_path))
+    } else if (exit_report == 0 && !file.exists(expected_html)) {
+      if (verbose) msg_fail(sprintf("Quarto exited successfully but report not found at: %s", expected_html))
     } else {
       if (verbose) msg_fail("HTML Report generation failed.")
     }
@@ -359,7 +384,7 @@ omicsflow <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
   # Prepare output object
   res <- list(
     status = if (isTRUE(status$INTEGRATION)) "success" else "partial/failed",
-    report_path = if (render_report && isTRUE(status$INTEGRATION) && exit_report == 0) normalizePath(file.path(abs_outdir, "reports", "OmicsFlow_Report.html"), mustWork = FALSE) else NULL,
+    report_path = report_path,
     output_dirs = dirs,
     executed_modalities = names(status)[status == TRUE],
     skipped_modalities = names(status)[status == FALSE],
