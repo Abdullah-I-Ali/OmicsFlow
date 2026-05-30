@@ -266,31 +266,79 @@ validate_inputs <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
         log_fail("Failed to parse clinical table.")
       } else {
         # Check clinical map
-        if (!is.null(clinical_map) && file.exists(clinical_map)) {
+        cmap <- NULL
+        if (!is.null(clinical_map)) {
           tryCatch({
-            cmap <- jsonlite::fromJSON(clinical_map)
-            # Verify clinical column mapping keys resolve to real columns
-            required_keys <- c("patient_id", "os_time", "os_event")
-            for (k in required_keys) {
-              if (k %in% names(cmap)) {
-                mapped_col <- cmap[[k]]
-                if (!mapped_col %in% colnames(df_cl)) {
-                  log_fail(sprintf("Clinical column map key '%s' resolves to column '%s' which does not exist in clinical file.", k, mapped_col))
-                } else {
-                  log_ok(sprintf("Clinical map key '%s' matches column '%s'", k, mapped_col))
-                }
-              } else {
-                log_fail(sprintf("Clinical map is missing key: %s", k))
+            cmap <- parse_clinical_mapping(clinical_map)
+          }, error = function(e) {
+            log_fail(sprintf("Failed to parse clinical mapping: %s", e$message))
+          })
+        }
+        
+        if (is.null(cmap)) {
+          log_warn("No clinical mapping provided or mapped. Simulating auto-detection...")
+          tryCatch({
+            det_result <- detect_clinical_columns(clinical)
+            cmap <- det_result$mapping
+            if (length(det_result$warnings) > 0) {
+              for (w in det_result$warnings) {
+                log_warn(w)
               }
             }
           }, error = function(e) {
-            log_fail(sprintf("Failed to read clinical map JSON: %s", e$message))
+            log_fail(sprintf("Auto-detection of clinical columns failed: %s", e$message))
           })
-        } else {
-          log_warn("No clinical mapping file provided. Clinical parser will fallback to auto-detection.")
+        }
+        
+        if (!is.null(cmap)) {
+          # Verify clinical column mapping keys resolve to real columns
+          required_keys <- c("patient_id", "os_time", "os_event")
+          for (k in required_keys) {
+            if (k %in% names(cmap)) {
+              mapped_val <- cmap[[k]]
+              # Split by comma in case of multi-column mappings (e.g. dual survival times)
+              mapped_cols <- trimws(strsplit(mapped_val, ",")[[1]])
+              missing_cols <- setdiff(mapped_cols, colnames(df_cl))
+              
+              if (length(missing_cols) > 0) {
+                log_fail(sprintf("Clinical column mapping for '%s' resolves to column(s) '%s' which do not exist in clinical file: %s", 
+                                 k, paste(missing_cols, collapse = ", "), clinical))
+              } else {
+                log_ok(sprintf("Clinical map key '%s' matches column(s) '%s'", k, paste(mapped_cols, collapse = ", ")))
+              }
+            } else {
+              log_fail(sprintf("Clinical mapping is missing key: %s", k))
+            }
+          }
         }
       }
     }
+  }
+  
+  # 5. Patient Overlap Verification
+  if (valid && !is.null(df_meta) && !is.null(clinical)) {
+    tryCatch({
+      # Load standardized clinical data
+      clinical_std <- load_clinical_data(clinical, clinical_map, df_meta)
+      
+      meta_patients <- unique(df_meta$patient_id)
+      clinical_patients <- unique(clinical_std$patient_id)
+      
+      overlap_patients <- intersect(meta_patients, clinical_patients)
+      overlap_count <- length(overlap_patients)
+      
+      log_ok(sprintf("Clinical & Metadata Alignment: Intersected %d patient IDs between metadata (%d patients) and clinical data (%d patients)", 
+                     overlap_count, length(meta_patients), length(clinical_patients)))
+      
+      if (overlap_count == 0) {
+        log_fail("No overlapping patient IDs found between sample metadata and clinical data. Survival analysis will fail. Please verify patient ID formats.")
+      } else if (overlap_count < 0.5 * length(meta_patients)) {
+        log_warn(sprintf("Low patient ID overlap detected: only %d out of %d metadata patients are present in clinical data.", 
+                         overlap_count, length(meta_patients)))
+      }
+    }, error = function(e) {
+      log_fail(sprintf("Failed to load and standardize clinical data for validation: %s", e$message))
+    })
   }
   
   if (valid) {

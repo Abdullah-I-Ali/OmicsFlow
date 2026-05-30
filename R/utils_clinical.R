@@ -12,12 +12,16 @@
 #' @return A named list of column mappings
 #' @keywords internal
 parse_clinical_mapping <- function(mapping_input) {
-  if (is.null(mapping_input) || mapping_input == "") {
+  if (is.null(mapping_input)) {
     return(NULL)
   }
 
   if (is.list(mapping_input)) {
     return(mapping_input)
+  }
+
+  if (is.character(mapping_input) && length(mapping_input) == 1 && mapping_input == "") {
+    return(NULL)
   }
 
   # If it is a string
@@ -99,21 +103,58 @@ load_clinical_data <- function(file, column_map = NULL, metadata = NULL) {
   # Determine if we fall back to TCGA auto-detection
   is_tcga <- FALSE
   if (is.null(mapping)) {
-    if ("bcr_patient_barcode" %in% colnames(clinical_raw)) {
-      is_tcga <- TRUE
-    } else {
-      # Custom non-TCGA default mapping: look for standard columns
-      mapping <- list(
-        patient_id = intersect(colnames(clinical_raw), c("patient_id", "PatientID", "patient", "ID", "SampleID", "sample_id"))[1],
-        os_time    = intersect(colnames(clinical_raw), c("os_time", "survival_time", "time", "days_to_death", "days"))[1],
-        os_event   = intersect(colnames(clinical_raw), c("os_event", "event", "vital_status", "status"))[1],
-        age        = intersect(colnames(clinical_raw), c("age", "age_at_diagnosis", "Age"))[1],
-        gender     = intersect(colnames(clinical_raw), c("gender", "sex", "Gender", "Sex"))[1]
-      )
-      # Clean up NULL mappings
-      mapping <- mapping[!sapply(mapping, is.null)]
-      mapping <- mapping[!is.na(mapping)]
+    # Extensible pattern-based auto-detection for clinical columns when no map is provided
+    col_names <- colnames(clinical_raw)
+    col_names_lower <- tolower(col_names)
+    
+    event_time_col <- NULL
+    censor_time_col <- NULL
+    
+    # Event/death time pattern: (death, dead, deceased, event) AND (day, month, year, time, survival)
+    for (i in seq_along(col_names)) {
+      col <- col_names[i]
+      cl <- col_names_lower[i]
+      if ((grepl("death", cl) || grepl("dead", cl) || grepl("deceased", cl) || grepl("event", cl)) &&
+          (grepl("day", cl) || grepl("month", cl) || grepl("year", cl) || grepl("time", cl) || grepl("survival", cl))) {
+        event_time_col <- col
+        break
+      }
     }
+    
+    # Censored/follow-up time pattern: (follow, censor, alive) AND (day, month, year, time, survival)
+    for (i in seq_along(col_names)) {
+      col <- col_names[i]
+      cl <- col_names_lower[i]
+      if ((grepl("follow", cl) || grepl("censor", cl) || grepl("alive", cl)) &&
+          (grepl("day", cl) || grepl("month", cl) || grepl("year", cl) || grepl("time", cl) || grepl("survival", cl))) {
+        censor_time_col <- col
+        break
+      }
+    }
+    
+    detected_time <- NULL
+    if (!is.null(event_time_col) && !is.null(censor_time_col) && (event_time_col != censor_time_col)) {
+      detected_time <- paste0(event_time_col, ",", censor_time_col)
+    } else {
+      # Fallback single survival time column using robust exact/fuzzy list
+      exact_time_cands <- c("os_time", "survival_time", "overall_survival_time", "time", "followup_time", "survival_months", "survival_days", "duration", "followup_months", "survival")
+      detected_time <- col_names[col_names_lower %in% exact_time_cands][1]
+      if (is.na(detected_time)) {
+        detected_time <- col_names[grepl("days", col_names_lower) | grepl("months", col_names_lower) | grepl("years", col_names_lower) | grepl("time", col_names_lower) | grepl("survival", col_names_lower) | grepl("duration", col_names_lower)][1]
+      }
+    }
+    
+    mapping <- list(
+      patient_id = col_names[col_names_lower %in% c("patient_id", "patientid", "patient", "id", "bcr_patient_barcode", "patient_barcode", "sample", "sample_id", "sampleid", "subject", "subject_id", "case_id", "barcode", "patientbarcode")][1],
+      os_time    = detected_time,
+      os_event   = col_names[col_names_lower %in% c("os_event", "event", "vital_status", "status", "censored", "deceased", "death_status", "survival_status", "os_status", "dead_or_alive")][1],
+      age        = col_names[col_names_lower %in% c("age", "age_at_diagnosis", "age_years", "age_at_dx", "age_at_index")][1],
+      gender     = col_names[col_names_lower %in% c("gender", "sex")][1]
+    )
+    
+    # Clean up NULL mappings
+    mapping <- mapping[!sapply(mapping, is.null)]
+    mapping <- mapping[!is.na(mapping)]
   }
 
   # Standardize dataframe
