@@ -44,9 +44,12 @@ data/
 
 # --- File Types / Binaries / Large Datasets ---
 *.rds
+!inst/configs/gene_coordinates.rds
+!configs/gene_coordinates.rds
 *.html
 *.pdf
 *.png
+*.tar.gz
 
 # --- Keep Specific Documentation Assets ---
 # Force Git to track preview images in the assets folder even though *.png is ignored

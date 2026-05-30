@@ -56,6 +56,17 @@ if (!nzchar(report_qmd) || !file.exists(report_qmd)) {
 }
 
 # --------------------------------------------------------------------------
+# Test 2.5: system.file() resolves bundled CNV cache
+# --------------------------------------------------------------------------
+cat("\n[TEST 2.5] system.file() resolves bundled CNV cache...\n")
+cnv_cache_path <- system.file("configs", "gene_coordinates.rds", package = "OmicsFlow")
+if (!nzchar(cnv_cache_path)) {
+  stop("FAIL: Bundled CNV cache not found. The file was not included in the installed package.")
+} else {
+  cat(sprintf("  [OK] Bundled CNV cache found at: %s\n", cnv_cache_path))
+}
+
+# --------------------------------------------------------------------------
 # Test 3: omicsflow_root() resolves without set_omicsflow_root()
 # --------------------------------------------------------------------------
 cat("\n[TEST 3] omicsflow_root() resolves without set_omicsflow_root()...\n")
