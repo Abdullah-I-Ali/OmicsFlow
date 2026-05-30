@@ -67,6 +67,17 @@ if (!nzchar(cnv_cache_path)) {
 }
 
 # --------------------------------------------------------------------------
+# Test 2.6: system.file() resolves bundled cross-reactive probes
+# --------------------------------------------------------------------------
+cat("\n[TEST 2.6] system.file() resolves bundled cross-reactive probes...\n")
+cross_react_path <- system.file("configs", "cross_reactive_probes.csv", package = "OmicsFlow")
+if (!nzchar(cross_react_path)) {
+  stop("FAIL: Bundled cross-reactive probes not found. The file was not included in the installed package.")
+} else {
+  cat(sprintf("  [OK] Bundled cross-reactive probes found at: %s\n", cross_react_path))
+}
+
+# --------------------------------------------------------------------------
 # Test 3: omicsflow_root() resolves without set_omicsflow_root()
 # --------------------------------------------------------------------------
 cat("\n[TEST 3] omicsflow_root() resolves without set_omicsflow_root()...\n")

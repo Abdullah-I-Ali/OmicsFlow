@@ -158,6 +158,7 @@ validation <- validate_inputs(
     meth = "data/mycohort/meth.rds",
     metadata = "templates/sample_metadata.csv"
     # cnv_cache = "my_gene_coords.rds" # Required if CNV is provided
+    # meth_cross_react = "my_cross_reactive_probes.csv" # Optional: Custom Methylation cross-reactive probes
 )
 ```
 
@@ -192,12 +193,16 @@ results <- omicsflow(
     clinical     = "templates/custom_clinical_template.tsv",
     clinical_map = "templates/clinical_map.json",
     outdir       = "results/myrun"
-    # cache      = "my_gene_coords.rds" # Optional: Custom Ensembl hg38 cache for CNV
+    # cnv_cache  = "my_gene_coords.rds" # Optional: Custom Ensembl hg38 cache for CNV
+    # meth_cross_react = "my_cross_react.csv" # Optional: Custom Methylation cross-reactive probes
 )
 ```
 
-::: {.callout-note title="CNV Preprocessing & Cache"}
-If you include CNV data (`cnv = "cnv.rds"`), the pipeline requires an Ensembl gene coordinates cache (`cache`) to map segments to genes. Because querying Ensembl dynamically can take several minutes and is prone to network timeouts, OmicsFlow uses a bundled default cache automatically. You can download an up-to-date hg38 cache for production use by running `generate_cnv_cache("my_gene_coords.rds")` and passing it explicitly.
+::: {.callout-note title="Offline Resources (CNV Cache & Methylation Probes)"}
+OmicsFlow comes bundled with default resources to ensure the pipeline runs offline without internet dependencies:
+
+- **Methylation Cross-Reactive Probes:** Automatically filtered using a bundled version of the Chen et al. (2013) list. You can override it via `meth_cross_react`.
+- **CNV Ensembl Cache:** If CNV data is provided, an Ensembl gene coordinates cache is required. OmicsFlow uses a bundled default automatically. You can download a fresh hg38 cache via `generate_cnv_cache("my_gene_coords.rds")` and pass it explicitly.
 :::
 
 ::: {.expected-output}

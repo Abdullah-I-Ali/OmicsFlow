@@ -12,7 +12,8 @@ validate_inputs(
   metadata = NULL,
   clinical = NULL,
   clinical_map = NULL,
-  cnv_cache = NULL
+  cnv_cache = NULL,
+  meth_cross_react = NULL
 )
 }
 \arguments{
@@ -30,7 +31,9 @@ validate_inputs(
 
 \item{clinical_map}{Path to clinical mapping JSON file, or NULL}
 
-\item{cnv_cache}{Path to CNV gene coordinates cache file, or NULL for auto-detection}
+\item{cnv_cache}{Path to Ensembl gene coordinates cache for CNV preprocessing.}
+
+\item{meth_cross_react}{Path to cross-reactive probes list for Methylation preprocessing.}
 }
 \value{
 An S3 object of class \code{omicsflow_validation} containing:

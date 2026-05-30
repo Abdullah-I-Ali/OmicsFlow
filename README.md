@@ -138,7 +138,8 @@ omicsflow(
   clinical = "results/templates/custom_clinical_template.tsv",
   clinical_map = "results/templates/clinical_map.json",
   outdir = "results/myrun"
-  # cache = "results/my_cnv_cache.rds" # Optional: provide a custom CNV cache
+  # cnv_cache = "results/my_cnv_cache.rds" # Optional: provide a custom CNV cache
+  # meth_cross_react = "results/my_cross_react.csv" # Optional: Custom Methylation cross-reactive probes
 )
 ```
 
@@ -226,11 +227,20 @@ If you wish to download a real, up-to-date hg38 gene coordinate cache for produc
 ```r
 generate_cnv_cache("my_gene_coords_hg38.rds")
 ```
-You can then pass this cache explicitely: `omicsflow(..., cache = "my_gene_coords_hg38.rds")` or `validate_inputs(..., cnv_cache = "my_gene_coords_hg38.rds")`. If no cache is provided, OmicsFlow will automatically use the bundled default.
+You can then pass this cache explicitly: `omicsflow(..., cnv_cache = "my_gene_coords_hg38.rds")` or `validate_inputs(..., cnv_cache = "my_gene_coords_hg38.rds")`. If no cache is provided, OmicsFlow will automatically use the bundled default.
 
 ---
 
-## 8. Metadata & Clinical Mapping Examples
+## 9. Methylation Cross-Reactive Probes
+
+The Methylation preprocessing module automatically removes cross-reactive probes (which map to multiple genomic locations) using the Chen et al. (2013) list. **OmicsFlow comes bundled with a default fallback list** to ensure the pipeline runs offline without internet dependency.
+
+You can override this by explicitly passing your own list:
+`omicsflow(..., meth_cross_react = "my_cross_reactive_probes.csv")`
+
+---
+
+## 10. Metadata & Clinical Mapping Examples
 
 OmicsFlow uses an abstraction layer to decouple pipeline execution from sample-naming conventions. This allows you to process mismatched omics matrices without manual string slicing.
 

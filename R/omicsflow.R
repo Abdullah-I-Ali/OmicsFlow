@@ -24,6 +24,7 @@
 #' @param mofa_iter Number of iterations for MOFA training
 #' @param mofa_prefilter Number of top features based on MOFA weights to retain for survival prefiltering
 #' @param final_features Number of final features to retain in clinical model
+#' @param meth_cross_react Path to cross-reactive probes list. Defaults to bundled Ensembl reference.
 #' @param cache Path to CNV gene coordinates cache file. If NULL and configurations exist, defaults to configurations.
 #' @param render_report Logical, whether to render the Quarto HTML report at the end
 #' @param verbose Logical, whether to print detailed logs to console
@@ -57,6 +58,7 @@ omicsflow <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
                       n_top_rna = 200, n_top_meth = 500, n_top_cnv = 500,
                       mofa_factors = 5, mofa_iter = 100,
                       mofa_prefilter = 50, final_features = 20,
+                      meth_cross_react = NULL,
                       cache = NULL,
                       render_report = TRUE,
                       verbose = TRUE) {
@@ -92,6 +94,7 @@ omicsflow <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
   metadata <- safe_norm(metadata)
   clinical <- safe_norm(clinical)
   clinical_map <- safe_norm(clinical_map)
+  meth_cross_react <- safe_norm(meth_cross_react, mustWork = FALSE)
   outdir <- normalizePath(outdir, mustWork = FALSE)
   
   # Default cache logic for CNV:
@@ -108,6 +111,11 @@ omicsflow <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
     if (!is.null(cache) && verbose) {
       msg_info(sprintf("Using auto-resolved CNV cache: %s", cache))
     }
+  }
+
+  # Ensure meth_cross_react is set correctly
+  if (is.null(meth_cross_react) || !nzchar(meth_cross_react)) {
+    meth_cross_react <- omicsflow_path("configs", "cross_reactive_probes.csv")
   }
 
   # Step 1: Pre-flight Validation
@@ -203,6 +211,7 @@ omicsflow <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
       sprintf("--metadata %s", shQuote(metadata)),
       sprintf("--outdir %s/", shQuote(dirs$meth)),
       sprintf("--n-top %d", n_top_meth),
+      sprintf("--cross-react %s", shQuote(meth_cross_react)),
       "--knn-k 2"
     )
     if (!is.null(clinical)) {

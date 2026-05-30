@@ -16,7 +16,8 @@
 #' @param metadata Path to sample metadata CSV file (required for execution)
 #' @param clinical Path to clinical TSV/CSV file, or NULL
 #' @param clinical_map Path to clinical mapping JSON file, or NULL
-#' @param cnv_cache Path to CNV gene coordinates cache file, or NULL for auto-detection
+#' @param cnv_cache Path to Ensembl gene coordinates cache for CNV preprocessing.
+#' @param meth_cross_react Path to cross-reactive probes list for Methylation preprocessing.
 #'
 #' @return An S3 object of class \code{omicsflow_validation} containing:
 #'   \describe{
@@ -43,7 +44,7 @@
 #' @export
 validate_inputs <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
                             metadata = NULL, clinical = NULL, clinical_map = NULL,
-                            cnv_cache = NULL) {
+                            cnv_cache = NULL, meth_cross_react = NULL) {
   # validate_metadata_schema() is now a package-internal function in
 
   # R/utils_metadata.R — no source() call needed.
@@ -103,6 +104,23 @@ validate_inputs <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
   
   check_modality("RNA-seq matrix", rna, "RNA")
   check_modality("Methylation matrix", meth, "Methylation")
+  
+  if (!is.null(meth)) {
+    if (is.null(meth_cross_react)) {
+      try({
+        candidate_cross <- omicsflow_path("configs", "cross_reactive_probes.csv")
+        if (file.exists(candidate_cross)) {
+          meth_cross_react <- candidate_cross
+        }
+      }, silent = TRUE)
+    }
+    if (is.null(meth_cross_react) || !file.exists(meth_cross_react)) {
+      log_warning("Methylation cross-reactive probes list not found locally. Preprocessing will attempt to download it from GitHub.")
+    } else {
+      log_ok(sprintf("Methylation cross-reactive probes resolved: %s", meth_cross_react))
+    }
+  }
+
   check_modality("CNV data", cnv, "CNV")
   
   if (!is.null(cnv)) {

@@ -20,6 +20,7 @@ omicsflow(
   mofa_iter = 100,
   mofa_prefilter = 50,
   final_features = 20,
+  meth_cross_react = NULL,
   cache = NULL,
   render_report = TRUE,
   verbose = TRUE
@@ -55,6 +56,8 @@ omicsflow(
 \item{mofa_prefilter}{Number of top features based on MOFA weights to retain for survival prefiltering}
 
 \item{final_features}{Number of final features to retain in clinical model}
+
+\item{meth_cross_react}{Path to cross-reactive probes list. Defaults to bundled Ensembl reference.}
 
 \item{cache}{Path to CNV gene coordinates cache file. If NULL and configurations exist, defaults to configurations.}
 
