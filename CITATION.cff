@@ -10,7 +10,9 @@ title: "OmicsFlow"
 
 version: "2.0.1"
 
-date-released: 2026-06-1
+doi: "10.5281/zenodo.20472936"
+
+date-released: 2026-06-01
 
 repository-code: "https://github.com/Abdullah-I-Ali/OmicsFlow"
 

@@ -4,6 +4,7 @@
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
 [![Quarto](https://img.shields.io/badge/quarto-ready-4A90E2.svg)](https://quarto.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/1243623722.svg)](https://doi.org/10.5281/zenodo.20472935)
 
 **OmicsFlow** is a modular, parameterizable, and reproducible orchestration pipeline designed for integrated multi-omics preprocessing, latent feature extraction, and downstream clinical survival forecasting. It seamlessly coordinates transcriptomics (RNA-seq), epigenomics (DNA Methylation), copy number variations (CNV), and somatic mutations (SNV), applying advanced Multi-Omics Factor Analysis (MOFA+) alongside machine learning survival models to predict clinical outcomes and isolate targetable biological pathways.
 
@@ -324,3 +325,4 @@ OmicsFlow/
 **Author:** Abdullah Ibrahim Ali  
 **Year:** 2026  
 **Repository:** [https://github.com/Abdullah-I-Ali/omicsflow](https://github.com/Abdullah-I-Ali/omicsflow)  
+**DOI:** [10.5281/zenodo.20472936](https://doi.org/10.5281/zenodo.20472935)

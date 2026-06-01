@@ -82,7 +82,7 @@ tryCatch({
   
   qc_metrics <- init_pathway_qc()
   
-  path_banner("OmicsFlow v1.0.0 | Pathway Enrichment")
+  path_banner("OmicsFlow v2.0.1 | Pathway Enrichment")
   path_msg(sprintf("Start time : %s", Sys.time()))
   path_msg(sprintf("Output dir : %s", opt$outdir))
   

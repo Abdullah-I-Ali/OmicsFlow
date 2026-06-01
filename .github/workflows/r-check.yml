@@ -47,6 +47,10 @@ jobs:
             cat("Namespace API integrity verified.\n")
           '
 
+      - name: Generate Realistic Cohort for Testing
+        run: |
+          Rscript generate_realistic_cohort.R
+
       - name: Lightweight API Smoke Test
         run: |
           Rscript -e '

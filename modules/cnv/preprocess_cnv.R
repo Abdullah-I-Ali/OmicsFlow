@@ -87,7 +87,7 @@ tryCatch({
   
   metadata <- load_metadata(opt$metadata)
   
-  cnv_banner("OmicsFlow v1.0.0 | CNV Preprocessing")
+  cnv_banner("OmicsFlow v2.0.1 | CNV Preprocessing")
   cnv_msg(sprintf("Start time : %s", Sys.time()))
   cnv_msg(sprintf("Input      : %s", opt$input))
   cnv_msg(sprintf("Output dir : %s", opt$outdir))

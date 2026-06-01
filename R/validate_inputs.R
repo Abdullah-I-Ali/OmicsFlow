@@ -115,7 +115,7 @@ validate_inputs <- function(rna = NULL, meth = NULL, cnv = NULL, snv = NULL,
       }, silent = TRUE)
     }
     if (is.null(meth_cross_react) || !file.exists(meth_cross_react)) {
-      log_warning("Methylation cross-reactive probes list not found locally. Preprocessing will attempt to download it from GitHub.")
+      log_warn("Methylation cross-reactive probes list not found locally. Preprocessing will attempt to download it from GitHub.")
     } else {
       log_ok(sprintf("Methylation cross-reactive probes resolved: %s", meth_cross_react))
     }

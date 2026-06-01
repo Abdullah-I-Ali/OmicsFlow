@@ -19,7 +19,7 @@ format:
   OmicsFlow orchestrates multi-omics alignment, factor integration via MOFA+, machine learning survival modeling, and pathway enrichment under a highly cohesive, programmatic R interface.
 </p>
 <div class="badge-container">
-  <span class="badge-item primary">R Package v1.0.0</span>
+  <span class="badge-item primary">R Package v2.0.1</span>
   <span class="badge-item accent">Nextflow Engine</span>
   <span class="badge-item">MOFA+ Integration</span>
   <span class="badge-item">ML Survival Models</span>
