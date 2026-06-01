@@ -1,16 +1,18 @@
 cff-version: 2.0.1
 
-message: "If you use OmicsFlow in your research, please cite this software."
+message: "If you use the OmicsFlow Nextflow workflow or R package in your research, please cite the overarching project."
 
 authors:
   - family-names: "Ali"
     given-names: "Abdullah Ibrahim"
 
-title: "OmicsFlow"
+title: "OmicsFlow: Modular Multi-Omics Integration Pipeline"
 
 version: "2.0.1"
 
-date-released: 2026-6-1
+doi: "10.5281/zenodo.20472936"
+
+date-released: "2026-06-01"
 
 repository-code: "https://github.com/Abdullah-I-Ali/OmicsFlow"
 

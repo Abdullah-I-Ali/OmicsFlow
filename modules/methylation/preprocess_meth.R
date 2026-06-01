@@ -76,7 +76,7 @@ metadata <- load_metadata(args$metadata)
 
 epsilon <- 1e-7
 
-meth_banner("OmicsFlow v1.0.0 | DNA Methylation Preprocessing")
+meth_banner("OmicsFlow v2.0.1 | DNA Methylation Preprocessing")
 meth_msg(sprintf("Start time : %s", Sys.time()))
 meth_msg(sprintf("Input      : %s", args$input))
 meth_msg(sprintf("Output dir : %s", args$outdir))

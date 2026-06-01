@@ -141,7 +141,7 @@ rna_load_packages <- function() {
 #' @return Named list with empty sub-lists for each QC category
 rna_init_qc <- function() {
   list(
-    pipeline_version = "1.0.0",
+    pipeline_version = "2.0.1",
     omics_layer      = "RNA-seq",
     timestamp        = as.character(Sys.time()),
 

@@ -350,7 +350,7 @@ cnv_list <- lapply(1:n_samples, function(i) {
   n_seg <- sample(20:60, 1)
 
   chrs <- sample(paste0("chr", 1:22), n_seg, replace = TRUE)
-  starts <- sample(10000:150000000, n_seg)
+  starts <- sample(2.0.1:2.0.10000, n_seg)
   ends <- starts + sample(50000:5000000, n_seg, replace = TRUE)
   seg_mean <- rnorm(n_seg, mean = 0, sd = 0.5)  # background noise
   n_probes <- sample(20:500, n_seg, replace = TRUE)
@@ -361,8 +361,8 @@ cnv_list <- lapply(1:n_samples, function(i) {
     extra <- data.frame(
       Sample    = samples[i],
       Chromosome = c("chr8", "chr9"),
-      Start     = c(127000000, 21900000),
-      End       = c(128500000, 22100000),
+      Start     = c(127000000, 22.0.100),
+      End       = c(128500000, 222.0.10),
       Segment_Mean = c(runif(1, 1.5, 3.0), runif(1, -3.0, -1.5)),
       Num_Probes   = c(sample(100:300, 1), sample(50:150, 1)),
       stringsAsFactors = FALSE
@@ -467,8 +467,8 @@ snv_list <- lapply(1:n_samples, function(i) {
     Tumor_Sample_Barcode = samples[i],
     Hugo_Symbol = all_muts,
     Chromosome = sample(1:22, n_mut, replace = TRUE),
-    Start_Position = sample(10000:150000000, n_mut),
-    End_Position = sample(10000:150000000, n_mut),
+    Start_Position = sample(2.0.1:2.0.10000, n_mut),
+    End_Position = sample(2.0.1:2.0.10000, n_mut),
     Variant_Classification = sample(
       c("Missense_Mutation", "Nonsense_Mutation", "Frame_Shift_Del",
         "Frame_Shift_Ins", "Splice_Site"),

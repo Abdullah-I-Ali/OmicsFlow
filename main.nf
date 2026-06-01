@@ -134,7 +134,7 @@ def printBanner() {
     ║   ██      ██      ██    ██ ██ ███ ██                         ║
     ║   ██      ███████  ██████   ███ ███                          ║
     ║                                                              ║
-    ║   OmicsFlow v1.0.0 — Stable Core Release                    ║
+    ║   OmicsFlow v2.0.1 — Stable Core Release                    ║
     ║   Author: Abdullah Ibrahim Ali                               ║
     ║                                                              ║
     ╠══════════════════════════════════════════════════════════════╣

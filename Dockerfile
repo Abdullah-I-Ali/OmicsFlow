@@ -3,11 +3,11 @@
 # =============================================================================
 #
 # BUILD:
-#   docker build -t omicsflow:1.0.0 .
+#   docker build -t omicsflow:2.0.1 .
 #
 # RUN (standalone):
 #   docker run --rm -v $(pwd)/data:/omicsflow/data -v $(pwd)/results:/omicsflow/results \
-#     omicsflow:1.0.0 Rscript modules/rna/preprocess_rna.R --input data/rna_expression_raw.rds
+#     omicsflow:2.0.1 Rscript modules/rna/preprocess_rna.R --input data/rna_expression_raw.rds
 #
 # RUN (via Nextflow):
 #   nextflow run main.nf -profile docker --rna data/rna_expression_raw.rds ...
@@ -18,7 +18,7 @@
 FROM rocker/r-ver:4.4.2
 
 LABEL maintainer="Abdullah Ibrahim Ali"
-LABEL version="1.0.0"
+LABEL version="2.0.1"
 LABEL description="OmicsFlow: Multi-Omics Integration & Discovery Pipeline"
 
 # Prevent interactive prompts during build
@@ -194,7 +194,7 @@ COPY docker/smoke_test.R /omicsflow/docker/smoke_test.R
 RUN Rscript /omicsflow/docker/smoke_test.R
 
 # Runtime metadata
-ENV OMICSFLOW_VERSION="1.0.0"
+ENV OMICSFLOW_version="2.0.1"
 ENV BIOCONDUCTOR_VERSION="3.20"
 ENV R_VERSION="4.4.2"
 

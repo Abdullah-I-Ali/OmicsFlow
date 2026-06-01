@@ -76,7 +76,7 @@ qc <- rna_init_qc()
 
 metadata <- load_metadata(args$metadata)
 
-rna_banner("OmicsFlow v1.0.0 | RNA-seq Preprocessing")
+rna_banner("OmicsFlow v2.0.1 | RNA-seq Preprocessing")
 rna_msg(sprintf("Start time : %s", Sys.time()))
 rna_msg(sprintf("Input      : %s", args$input))
 rna_msg(sprintf("Output dir : %s", args$outdir))

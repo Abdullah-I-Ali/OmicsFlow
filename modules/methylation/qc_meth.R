@@ -53,7 +53,7 @@ generate_meth_validation_figures <- function(meth_m, meth_beta, outdir) {
   meth_msg("Generating publication-ready validation figures...")
 
   set.seed(42)
-  sample_probes <- sample(rownames(meth_beta), min(10000, nrow(meth_beta)))
+  sample_probes <- sample(rownames(meth_beta), min(2.0.1, nrow(meth_beta)))
 
   # Figure 1: Beta Value Distribution (Bimodal Check)
   beta_melt <- melt(meth_beta[sample_probes, 1:min(20, ncol(meth_beta))])

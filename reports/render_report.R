@@ -47,7 +47,7 @@ if (!dir.exists(opt$output_dir)) dir.create(opt$output_dir, recursive = TRUE)
 
 cat("\n")
 cat("╔══════════════════════════════════════════════════════════════╗\n")
-cat("║  OmicsFlow v1.0.0 — Report Generation                      ║\n")
+cat("║  OmicsFlow v2.0.1 — Report Generation                      ║\n")
 cat("╠══════════════════════════════════════════════════════════════╣\n")
 cat(sprintf("║  Template   : %s\n", opt$report_qmd))
 cat(sprintf("║  Results    : %s\n", opt$results_dir))

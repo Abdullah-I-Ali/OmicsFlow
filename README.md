@@ -1,9 +1,14 @@
-# OmicsFlow
+# OmicsFlow (Nextflow/Docker Edition)
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A522.10.0-23aa62.svg)](https://nextflow.io/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
 [![Quarto](https://img.shields.io/badge/quarto-ready-4A90E2.svg)](https://quarto.org/)
+[![DOI](https://zenodo.org/badge/1243623722.svg)](https://doi.org/10.5281/zenodo.20472935)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+> **Note on OmicsFlow Distributions:**
+> OmicsFlow is distributed in two intentionally distinct formats to serve different operational needs. You are currently viewing the **Nextflow/Docker Edition** on the `main` branch, which serves as a containerized, production-scale workflow orchestration engine.
+> Alternatively, the **OmicsFlow R Package** (available on the `feature/omicsflow-package` branch) is designed for interactive RStudio use and flexible programmatic integration. Both distributions share the same underlying core analytics.
 
 **OmicsFlow** is a modular, parameterizable, and reproducible orchestration pipeline designed for integrated multi-omics preprocessing, latent feature extraction, and downstream clinical survival forecasting. It seamlessly coordinates transcriptomics (RNA-seq), epigenomics (DNA Methylation), copy number variations (CNV), and somatic mutations (SNV), applying advanced Multi-Omics Factor Analysis (MOFA+) alongside machine learning survival models to predict clinical outcomes and isolate targetable biological pathways.
 
@@ -11,7 +16,7 @@
 
 ## 1. Project Overview
 
-OmicsFlow bridges the gap between raw, heterogeneous biological data matrices and actionable clinical survival forecasting. Built as a collection of modular preprocessing, integration, and survival-modeling scripts, the workflow standardizes and integrates distinct cellular views, trains predictive machine learning models, performs functional over-representation analysis, and compiles all analytics into a dynamic, publication-grade interactive report.
+The Nextflow/Docker edition of OmicsFlow bridges the gap between raw, heterogeneous biological data matrices and actionable clinical survival forecasting. Built as a collection of modular preprocessing, integration, and survival-modeling scripts wrapped in Nextflow, the workflow standardizes and integrates distinct cellular views, trains predictive machine learning models, performs functional over-representation analysis, and compiles all analytics into a dynamic, publication-grade interactive report.
 
 ---
 
@@ -302,7 +307,10 @@ OmicsFlow/
 
 ## 16. Citation & Authors
 
+The Zenodo DOI below represents the overarching OmicsFlow project, encompassing both the Nextflow/Docker execution workflow and the R package distribution. If you use either distribution in your research, please cite the project:
+
 **OmicsFlow: A Modular Pipeline for Integrated Multi-Omics and Survival Forecasting**  
 **Author:** Abdullah Ibrahim Ali  
 **Year:** 2026  
-**Repository:** [https://github.com/Abdullah-I-Ali/omicsflow](https://github.com/Abdullah-I-Ali/omicsflow)  
+**DOI:** [10.5281/zenodo.20472936](https://doi.org/10.5281/zenodo.20472935)  
+**Repository:** [https://github.com/Abdullah-I-Ali/omicsflow](https://github.com/Abdullah-I-Ali/omicsflow)

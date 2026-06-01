@@ -4,7 +4,7 @@
 
 ```bash
 # 1. Build the container
-docker build -t omicsflow:1.0.0 .
+docker build -t omicsflow:2.0.1 .
 
 # 2. Run full pipeline via Nextflow + Docker
 nextflow run main.nf -profile docker \
@@ -20,7 +20,7 @@ nextflow run main.nf -profile docker \
 docker run --rm \
   -v $(pwd)/data:/omicsflow/data \
   -v $(pwd)/results:/omicsflow/results \
-  omicsflow:1.0.0 \
+  omicsflow:2.0.1 \
   modules/rna/preprocess_rna.R --input data/rna_expression_raw.rds --outdir results/rna/
 ```
 
@@ -53,7 +53,7 @@ graph TD
     E6 --> E7["Layer 9: Enrichment<br/>clusterProfiler, org.Hs.eg.db"]
     E7 --> F["COPY pipeline code"]
     F --> G["Smoke Test Validation<br/>30+ packages verified"]
-    G --> H["omicsflow:1.0.0 ✔"]
+    G --> H["omicsflow:2.0.1 ✔"]
 ```
 
 > [!IMPORTANT]
@@ -116,22 +116,22 @@ Profiles can be combined: `nextflow run main.nf -profile test,docker`
 
 ```bash
 # Build image
-docker build -t omicsflow:1.0.0 .
+docker build -t omicsflow:2.0.1 .
 
 # Verify smoke test passed (check build output for "ALL PACKAGES VERIFIED")
 
 # Manual smoke test inside running container
-docker run --rm omicsflow:1.0.0 /omicsflow/docker/smoke_test.R
+docker run --rm omicsflow:2.0.1 /omicsflow/docker/smoke_test.R
 
 # Check image size
-docker images omicsflow:1.0.0
+docker images omicsflow:2.0.1
 
 # Tag for registry push
-docker tag omicsflow:1.0.0 ghcr.io/omicsflow/omicsflow:1.0.0
-docker push ghcr.io/omicsflow/omicsflow:1.0.0
+docker tag omicsflow:2.0.1 ghcr.io/omicsflow/omicsflow:2.0.1
+docker push ghcr.io/omicsflow/omicsflow:2.0.1
 
 # Convert to Singularity (for HPC)
-singularity pull omicsflow_1.0.0.sif docker://omicsflow:1.0.0
+singularity pull omicsflow_2.0.1.sif docker://omicsflow:2.0.1
 ```
 
 ---

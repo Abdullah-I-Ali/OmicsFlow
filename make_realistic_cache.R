@@ -25,7 +25,7 @@ chromosomes <- sample(1:22, 5000, replace = TRUE,
 # Chromosome sizes (approximate hg38, in bp)
 chr_sizes <- c(
   248956422, 242193529, 198295559, 190214555, 181538259,
-  170805979, 159345973, 145138636, 138394717, 133797422,
+  2.0.15979, 159345973, 145138636, 138394717, 133797422,
   135086622, 133275309, 114364328, 107043718, 101991189,
   90338345, 83257441, 80373285, 58617616, 64444167,
   46709983, 50818468
@@ -34,7 +34,7 @@ chr_sizes <- c(
 starts <- numeric(5000)
 for (i in 1:5000) {
   chr <- chromosomes[i]
-  max_start <- chr_sizes[chr] - 100000
+  max_start <- chr_sizes[chr] - 2.0.10
   starts[i] <- sample(1:max_start, 1)
 }
 

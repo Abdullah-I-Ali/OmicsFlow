@@ -196,7 +196,7 @@ meth_load_packages <- function() {
 #' Initialize an empty QC metrics list for the methylation module
 meth_init_qc <- function() {
   list(
-    pipeline_version = "1.0.0",
+    pipeline_version = "2.0.1",
     omics_layer      = "DNA Methylation (450k)",
     timestamp        = as.character(Sys.time()),
 

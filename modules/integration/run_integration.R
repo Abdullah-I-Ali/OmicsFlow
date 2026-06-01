@@ -81,7 +81,7 @@ tryCatch({
   
   qc_metrics <- init_int_qc()
   
-  int_banner("OmicsFlow v1.0.0 | MOFA+ Integration")
+  int_banner("OmicsFlow v2.0.1 | MOFA+ Integration")
   int_msg(sprintf("Start time : %s", Sys.time()))
   int_msg(sprintf("Output dir : %s", opt$outdir))
   

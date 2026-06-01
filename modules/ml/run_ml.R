@@ -84,7 +84,7 @@ tryCatch({
   set.seed(42)
   qc_metrics <- init_ml_qc()
   
-  ml_banner("OmicsFlow v1.0.0 | ML Survival Analysis")
+  ml_banner("OmicsFlow v2.0.1 | ML Survival Analysis")
   ml_msg(sprintf("Start time : %s", Sys.time()))
   ml_msg(sprintf("Output dir : %s", opt$outdir))
   

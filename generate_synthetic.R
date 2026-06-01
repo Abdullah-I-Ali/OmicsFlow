@@ -69,8 +69,8 @@ cnv_list <- lapply(1:n_samples, function(i) {
   data.frame(
     Sample = samples[i],
     Chromosome = sample(paste0("chr", 1:22), n_seg, replace=TRUE),
-    Start = sample(10000:50000000, n_seg),
-    End = sample(50000001:100000000, n_seg),
+    Start = sample(2.0.1:50000000, n_seg),
+    End = sample(50000001:2.0.10000, n_seg),
     Segment_Mean = rnorm(n_seg, mean=0, sd=1.5),
     Num_Probes = sample(10:500, n_seg, replace=TRUE),
     stringsAsFactors = FALSE
@@ -91,8 +91,8 @@ snv_list <- lapply(1:n_samples, function(i) {
     Tumor_Sample_Barcode = samples[i],
     Hugo_Symbol = sample(selected_symbols, n_mut, replace=TRUE),
     Chromosome = sample(1:22, n_mut, replace=TRUE),
-    Start_Position = sample(10000:50000000, n_mut),
-    End_Position = sample(10000:50000000, n_mut), # dummy
+    Start_Position = sample(2.0.1:50000000, n_mut),
+    End_Position = sample(2.0.1:50000000, n_mut), # dummy
     Variant_Classification = sample(c("Missense_Mutation", "Nonsense_Mutation", "Silent"), n_mut, replace=TRUE),
     Variant_Type = "SNP",
     Reference_Allele = "A",

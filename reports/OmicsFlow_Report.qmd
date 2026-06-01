@@ -21,7 +21,7 @@ format:
     lightbox: true
 params:
   results_dir: "../results"
-  version: "v1.0.0"
+  version: "v2.0.1"
   subtitle: "Stable Core Release"
 execute:
   echo: false

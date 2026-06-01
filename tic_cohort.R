@@ -1,0 +1,24 @@
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+CITATION.cff
+Dockerfile
+README.md
+VERSION
+docker_architecture.md
+generate_realistic_cohort.R
+generate_synthetic.R
+main.nf
+make_cache.R
+make_realistic_cache.R
+modules/cnv/preprocess_cnv.R
+modules/enrichment/run_enrichment.R
+modules/integration/run_integration.R
+modules/methylation/preprocess_meth.R
+modules/methylation/qc_meth.R
+modules/methylation/utils_meth.R
+modules/ml/run_ml.R
+modules/rna/preprocess_rna.R
+modules/rna/utils_rna.R
+modules/snv/preprocess_snv.R
+nextflow.config
+reports/OmicsFlow_Report.qmd
+reports/render_report.R
