@@ -66,9 +66,13 @@ jobs:
             stopifnot(res_temp$status == "success")
             
             cat("Testing validate_inputs()...\n")
+            meth_path <- "data/realistic_cohort/meth.rds"
+            if (!file.exists(meth_path)) meth_path <- NULL
+            
             res_val <- validate_inputs(
               rna = "data/realistic_cohort/rna.rds",
-              meth = "data/realistic_cohort/meth.rds",
+              meth = meth_path,
+              cnv = "data/realistic_cohort/cnv.rds",
               metadata = res_temp$templates_generated$metadata
             )
             stopifnot(inherits(res_val, "omicsflow_validation"))

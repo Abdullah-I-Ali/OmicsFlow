@@ -262,17 +262,21 @@ cat(sprintf("  Expression range: [%d, %d]\n", min(rna_mat), max(rna_mat)))
 # ==============================================================================
 cat("[5/8] Generating DNA methylation with subtype patterns...\n")
 
-# Use REAL Illumina 450k probe names from annotation
-# This is essential so preprocess_meth.R can match against the 450k annotation
-suppressPackageStartupMessages({
-  library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
-})
-anno <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
-real_probes <- rownames(anno)
-# Select 5000 random real probes (excluding sex chromosomes and non-CpG)
-chr_col <- anno$chr
-valid_idx <- which(!chr_col %in% c("chrX", "chrY") & grepl("^cg", real_probes))
-probes <- sample(real_probes[valid_idx], 5000)
+if (!requireNamespace("IlluminaHumanMethylation450kanno.ilmn12.hg19", quietly = TRUE)) {
+  cat("  [WARNING] 'IlluminaHumanMethylation450kanno.ilmn12.hg19' is not installed.\n")
+  cat("  [WARNING] Skipping methylation data generation.\n")
+} else {
+  # Use REAL Illumina 450k probe names from annotation
+  # This is essential so preprocess_meth.R can match against the 450k annotation
+  suppressPackageStartupMessages({
+    library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+  })
+  anno <- getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+  real_probes <- rownames(anno)
+  # Select 5000 random real probes (excluding sex chromosomes and non-CpG)
+  chr_col <- anno$chr
+  valid_idx <- which(!chr_col %in% c("chrX", "chrY") & grepl("^cg", real_probes))
+  probes <- sample(real_probes[valid_idx], 5000)
 
 # Base beta values: bimodal distribution (realistic)
 meth_mat <- matrix(NA_real_, nrow = 5000, ncol = n_samples)
@@ -326,14 +330,67 @@ batch_meth_shift <- list(
 for (i in 1:n_samples) {
   meth_mat[, i] <- meth_mat[, i] + batch_meth_shift[[batch_assignments[i]]]
 }
+  # Base beta values: bimodal distribution (realistic)
+  meth_mat <- matrix(NA_real_, nrow = 5000, ncol = n_samples)
+  for (j in 1:5000) {
+    # Bimodal: ~40% probes hypomethylated, ~60% hypermethylated
+    if (runif(1) < 0.4) {
+      meth_mat[j, ] <- rbeta(n_samples, shape1 = 2, shape2 = 8)  # low beta
+    } else {
+      meth_mat[j, ] <- rbeta(n_samples, shape1 = 8, shape2 = 2)  # high beta
+    }
+  }
+  rownames(meth_mat) <- probes
+  colnames(meth_mat) <- samples
 
-# Clamp to [0, 1] while preserving matrix dimensions
-meth_mat[meth_mat < 0.001] <- 0.001
-meth_mat[meth_mat > 0.999] <- 0.999
+  # --- Subtype-specific methylation patterns ---
+  # Block 1 (probes 1-200): hypomethylated in Proliferative
+  # Block 2 (probes 201-400): intermediate in Mesenchymal
+  # Block 3 (probes 401-600): hypermethylated in Immune_enriched
 
-saveRDS(meth_mat, file.path(out_dir, "meth.rds"))
-cat(sprintf("  Methylation matrix: %d probes × %d samples\n", nrow(meth_mat), ncol(meth_mat)))
-cat(sprintf("  Beta range: [%.3f, %.3f]\n", min(meth_mat), max(meth_mat)))
+  for (i in 1:n_samples) {
+    if (subtypes[i] == "Proliferative") {
+      meth_mat[1:200, i] <- rbeta(200, shape1 = 1.5, shape2 = 10)    # hypo
+      meth_mat[201:400, i] <- rbeta(200, shape1 = 4, shape2 = 4)     # mid
+      meth_mat[401:600, i] <- rbeta(200, shape1 = 6, shape2 = 3)     # mid-high
+    } else if (subtypes[i] == "Mesenchymal") {
+      meth_mat[1:200, i] <- rbeta(200, shape1 = 4, shape2 = 4)       # mid
+      meth_mat[201:400, i] <- rbeta(200, shape1 = 2, shape2 = 8)     # hypo (ECM)
+      meth_mat[401:600, i] <- rbeta(200, shape1 = 5, shape2 = 3)     # mid-high
+    } else {
+      meth_mat[1:200, i] <- rbeta(200, shape1 = 5, shape2 = 3)       # mid-high
+      meth_mat[201:400, i] <- rbeta(200, shape1 = 5, shape2 = 3)     # mid-high
+      meth_mat[401:600, i] <- rbeta(200, shape1 = 10, shape2 = 1.5)  # hyper
+    }
+  }
+
+  # --- Survival-linked probes (probes 601-630) ---
+  surv_probe_idx <- 601:630
+  for (p in surv_probe_idx) {
+    # Probes correlated with survival: high beta → worse prognosis
+    meth_mat[p, ] <- pmin(1, pmax(0,
+      0.5 + as.numeric(risk_score) * runif(1, 0.05, 0.15) + rnorm(n_samples, 0, 0.08)
+    ))
+  }
+
+  # --- Batch effects (small beta offset) ---
+  batch_meth_shift <- list(
+    B1 = 0.00,
+    B2 = 0.03,
+    B3 = -0.02
+  )
+  for (i in 1:n_samples) {
+    meth_mat[, i] <- meth_mat[, i] + batch_meth_shift[[batch_assignments[i]]]
+  }
+
+  # Clamp to [0, 1] while preserving matrix dimensions
+  meth_mat[meth_mat < 0.001] <- 0.001
+  meth_mat[meth_mat > 0.999] <- 0.999
+
+  saveRDS(meth_mat, file.path(out_dir, "meth.rds"))
+  cat(sprintf("  Methylation matrix: %d probes × %d samples\n", nrow(meth_mat), ncol(meth_mat)))
+  cat(sprintf("  Beta range: [%.3f, %.3f]\n", min(meth_mat), max(meth_mat)))
+}
 
 # ==============================================================================
 # 6. COPY NUMBER VARIATION (segment data)
@@ -505,7 +562,11 @@ cat(sprintf("  sample_metadata.csv  : %d samples\n", nrow(metadata)))
 cat(sprintf("  custom_clinical.tsv  : %d patients\n", nrow(clinical)))
 cat(sprintf("  clinical_map.json    : %d mappings\n", length(clin_map)))
 cat(sprintf("  rna.rds              : %d × %d\n", nrow(rna_mat), ncol(rna_mat)))
-cat(sprintf("  meth.rds             : %d × %d\n", nrow(meth_mat), ncol(meth_mat)))
+if (exists("meth_mat")) {
+  cat(sprintf("  meth.rds             : %d × %d\n", nrow(meth_mat), ncol(meth_mat)))
+} else {
+  cat("  meth.rds             : SKIPPED (missing Bioconductor package)\n")
+}
 cat(sprintf("  cnv.rds              : %d segments\n", nrow(cnv_df)))
 cat(sprintf("  snv.rds              : %d mutations\n", nrow(snv_df)))
 
